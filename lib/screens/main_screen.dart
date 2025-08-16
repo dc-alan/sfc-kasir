@@ -17,7 +17,6 @@ import 'settings_screen.dart';
 import 'promotions_screen.dart';
 import 'customer_analytics_screen.dart';
 import 'inventory_management_screen.dart';
-import 'module_permission_management_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -79,7 +78,6 @@ class _MainScreenState extends State<MainScreen> {
       ProfileScreen(),
       // Add ModulePermissionManagementScreen to admin screens
       // Note: Import statement for ModulePermissionManagementScreen should be added at the top
-      ModulePermissionManagementScreen(),
     ];
   }
 
@@ -128,7 +126,7 @@ class _MainScreenState extends State<MainScreen> {
       BottomNavigationBarItem(icon: Icon(Icons.people), label: 'User'),
       BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
       // Add navigation item for ModulePermissionManagementScreen
-      BottomNavigationBarItem(icon: Icon(Icons.security), label: 'Hak Akses'),
+      // BottomNavigationBarItem(icon: Icon(Icons.security), label: 'Hak Akses'),
     ];
   }
 

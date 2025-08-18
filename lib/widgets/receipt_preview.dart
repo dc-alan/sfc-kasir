@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../models/transaction.dart' as model;
+import '../models/app_settings.dart';
+import '../providers/bluetooth_printer_provider.dart';
 
 class ReceiptPreview extends StatelessWidget {
   final model.Transaction transaction;
   final String cashierName;
+  final AppSettings settings;
   final VoidCallback? onPrint;
 
   const ReceiptPreview({
     super.key,
     required this.transaction,
     required this.cashierName,
+    required this.settings,
     this.onPrint,
   });
 
@@ -65,32 +70,118 @@ class ReceiptPreview extends StatelessWidget {
               decoration: BoxDecoration(
                 border: Border(top: BorderSide(color: Colors.grey.shade300)),
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Tutup'),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        if (onPrint != null) {
-                          onPrint!();
-                        }
-                        Navigator.pop(context);
-                      },
-                      icon: const Icon(Icons.print),
-                      label: const Text('Print'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
+              child: Consumer<BluetoothPrinterProvider>(
+                builder: (context, printerProvider, child) {
+                  return Column(
+                    children: [
+                      // Bluetooth printer status
+                      if (printerProvider.connectedDevice != null)
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.green.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.bluetooth_connected,
+                                color: Colors.green.shade700,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Terhubung: ${printerProvider.connectedDevice!.name}',
+                                  style: TextStyle(
+                                    color: Colors.green.shade700,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.orange.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.bluetooth_disabled,
+                                color: Colors.orange.shade700,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Printer Bluetooth tidak terhubung',
+                                  style: TextStyle(
+                                    color: Colors.orange.shade700,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                      // Action buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Tutup'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: printerProvider.isConnected
+                                  ? () => _printToBluetooth(
+                                      context,
+                                      printerProvider,
+                                    )
+                                  : () {
+                                      if (onPrint != null) {
+                                        onPrint!();
+                                      }
+                                      Navigator.pop(context);
+                                    },
+                              icon: Icon(
+                                printerProvider.isConnected
+                                    ? Icons.bluetooth
+                                    : Icons.print,
+                              ),
+                              label: Text(
+                                printerProvider.isConnected
+                                    ? 'Print Bluetooth'
+                                    : 'Print',
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: printerProvider.isConnected
+                                    ? Colors.blue
+                                    : Colors.green,
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ),
-                ],
+                    ],
+                  );
+                },
               ),
             ),
           ],
@@ -120,18 +211,52 @@ class ReceiptPreview extends StatelessWidget {
                 topRight: Radius.circular(8),
               ),
             ),
-            child: const Column(
+            child: Column(
               children: [
+                // Receipt Header (customizable)
                 Text(
-                  'TOKO SERBAGUNA',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  settings.receiptHeader,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 8),
+                // Business Name
                 Text(
-                  'Jl. Contoh No. 123, Kota',
-                  style: TextStyle(fontSize: 12),
+                  settings.businessName.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                Text('Telp: (021) 1234-5678', style: TextStyle(fontSize: 12)),
+                const SizedBox(height: 4),
+                // Business Address
+                Text(
+                  settings.businessAddress,
+                  style: const TextStyle(fontSize: 12),
+                  textAlign: TextAlign.center,
+                ),
+                // Business Phone
+                if (settings.businessPhone.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Telp: ${settings.businessPhone}',
+                    style: const TextStyle(fontSize: 12),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+                // Business Email
+                if (settings.businessEmail.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Email: ${settings.businessEmail}',
+                    style: const TextStyle(fontSize: 12),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ],
             ),
           ),
@@ -231,18 +356,19 @@ class ReceiptPreview extends StatelessWidget {
                 const SizedBox(height: 16),
 
                 // Footer
-                const Center(
+                Center(
                   child: Column(
                     children: [
                       Text(
-                        'TERIMA KASIH',
-                        style: TextStyle(
+                        settings.receiptFooter,
+                        style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                         ),
+                        textAlign: TextAlign.center,
                       ),
-                      SizedBox(height: 4),
-                      Text(
+                      const SizedBox(height: 4),
+                      const Text(
                         'Barang yang sudah dibeli tidak dapat dikembalikan',
                         style: TextStyle(fontSize: 10),
                         textAlign: TextAlign.center,
@@ -355,6 +481,85 @@ class ReceiptPreview extends StatelessWidget {
         return 'Digital';
       case model.PaymentMethod.mixed:
         return 'Campuran';
+    }
+  }
+
+  Future<void> _printToBluetooth(
+    BuildContext context,
+    BluetoothPrinterProvider printerProvider,
+  ) async {
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('Mencetak struk...'),
+            ],
+          ),
+        ),
+      );
+
+      // Print the receipt
+      final success = await printerProvider.printReceipt(
+        transaction,
+        settings,
+        cashierName,
+      );
+
+      // Close loading dialog
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+
+      if (success) {
+        // Close receipt preview
+        if (context.mounted) {
+          Navigator.pop(context);
+        }
+
+        // Show success message
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Struk berhasil dicetak'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } else {
+        // Show error message
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('❌ Gagal mencetak struk'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Close loading dialog if still open
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+
+      // Show error message
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 }

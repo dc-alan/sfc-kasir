@@ -4,6 +4,7 @@ import '../providers/settings_provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/user.dart';
+import 'bluetooth_printer_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -425,6 +426,29 @@ class _SettingsScreenState extends State<SettingsScreen>
                   subtitle: Text(provider.settings.receiptPaperSize),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                   onTap: () => _showPaperSizeDialog(context, provider),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          _buildSectionHeader('Printer Bluetooth'),
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  title: const Text('Pengaturan Printer Bluetooth'),
+                  subtitle: const Text('Kelola koneksi printer Bluetooth'),
+                  leading: const Icon(Icons.bluetooth),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const BluetoothPrinterScreen(),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),

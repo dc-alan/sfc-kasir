@@ -780,27 +780,30 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   void _showReceiptPreview(model.Transaction transaction) {
     showDialog(
       context: context,
-      builder: (context) => ReceiptPreview(
-        transaction: transaction,
-        cashierName: 'Kasir',
-        onPrint: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Row(
-                children: [
-                  Icon(Icons.check_circle, color: Colors.white),
-                  SizedBox(width: 8),
-                  Text('Struk berhasil dicetak ulang'),
-                ],
+      builder: (context) => Consumer<SettingsProvider>(
+        builder: (context, settingsProvider, child) => ReceiptPreview(
+          transaction: transaction,
+          cashierName: 'Kasir',
+          settings: settingsProvider.settings,
+          onPrint: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.white),
+                    SizedBox(width: 8),
+                    Text('Struk berhasil dicetak ulang'),
+                  ],
+                ),
+                backgroundColor: AppTheme.successColor,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
-              backgroundColor: AppTheme.successColor,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

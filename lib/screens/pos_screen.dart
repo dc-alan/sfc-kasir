@@ -571,12 +571,16 @@ class _POSScreenState extends State<POSScreen> {
   void _showReceiptDialog(model.Transaction transaction) {
     showDialog(
       context: context,
-      builder: (context) => ReceiptPreview(
-        transaction: transaction,
-        cashierName: context.read<AuthProvider>().currentUser?.name ?? 'Kasir',
-        onPrint: () {
-          _showSuccessSnackBar('Struk berhasil dicetak');
-        },
+      builder: (context) => Consumer<SettingsProvider>(
+        builder: (context, settingsProvider, child) => ReceiptPreview(
+          transaction: transaction,
+          cashierName:
+              context.read<AuthProvider>().currentUser?.name ?? 'Kasir',
+          settings: settingsProvider.settings,
+          onPrint: () {
+            _showSuccessSnackBar('Struk berhasil dicetak');
+          },
+        ),
       ),
     );
   }

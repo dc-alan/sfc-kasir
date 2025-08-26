@@ -193,7 +193,7 @@ class CustomDropdown<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<T>(
-      value: value,
+      initialValue: value,
       items: items,
       onChanged: enabled ? onChanged : null,
       validator: validator,
@@ -457,7 +457,7 @@ class CustomSwitch extends StatelessWidget {
             : null,
         value: value,
         onChanged: onChanged,
-        activeColor: AppTheme.primaryColor,
+        activeThumbColor: AppTheme.primaryColor,
         contentPadding: EdgeInsets.zero,
       );
     }
@@ -465,7 +465,7 @@ class CustomSwitch extends StatelessWidget {
     return Switch(
       value: value,
       onChanged: onChanged,
-      activeColor: AppTheme.primaryColor,
+      activeThumbColor: AppTheme.primaryColor,
     );
   }
 }

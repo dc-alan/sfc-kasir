@@ -7,7 +7,7 @@ import '../models/transaction.dart' as model;
 class BluetoothPrinterProvider with ChangeNotifier {
   final BluetoothPrinterService _printerService = BluetoothPrinterService();
 
-  List<BluetoothDevice> _availableDevices = [];
+  final List<BluetoothDevice> _availableDevices = [];
   List<BluetoothDevice> _bondedDevices = [];
   BluetoothDevice? _selectedDevice;
   BluetoothConnectionStatus _connectionStatus =
@@ -131,20 +131,26 @@ class BluetoothPrinterProvider with ChangeNotifier {
     }
   }
 
-  /// Print receipt
+  /// Print receipt with enhanced error handling
   Future<bool> printReceipt(
     model.Transaction transaction,
     AppSettings settings,
     String cashierName,
   ) async {
     if (!isConnected) {
-      _lastError = 'Printer tidak terhubung';
+      _lastError =
+          'Printer tidak terhubung. Silakan hubungkan printer terlebih dahulu.';
       notifyListeners();
       return false;
     }
 
     try {
       _lastError = null;
+      notifyListeners();
+
+      // Add a small delay to ensure UI updates
+      await Future.delayed(const Duration(milliseconds: 100));
+
       final success = await _printerService.printReceipt(
         transaction,
         settings,
@@ -152,42 +158,75 @@ class BluetoothPrinterProvider with ChangeNotifier {
       );
 
       if (!success) {
-        _lastError = 'Gagal mencetak struk';
+        _lastError =
+            'Gagal mencetak struk. Periksa koneksi printer dan coba lagi.';
+      } else {
+        _lastError = null;
       }
 
       notifyListeners();
       return success;
     } catch (e) {
-      _lastError = 'Error print: $e';
+      _lastError = 'Error saat mencetak: ${e.toString()}';
       notifyListeners();
       return false;
     }
   }
 
-  /// Test print
+  /// Test print with enhanced error handling
   Future<bool> testPrint() async {
     if (!isConnected) {
-      _lastError = 'Printer tidak terhubung';
+      _lastError =
+          'Printer tidak terhubung. Silakan hubungkan printer terlebih dahulu.';
       notifyListeners();
       return false;
     }
 
     try {
       _lastError = null;
+      notifyListeners();
+
+      // Add a small delay to ensure UI updates
+      await Future.delayed(const Duration(milliseconds: 100));
+
       final success = await _printerService.testPrint();
 
       if (!success) {
-        _lastError = 'Gagal test print';
+        _lastError = 'Test print gagal. Periksa koneksi printer dan coba lagi.';
+      } else {
+        _lastError = null;
       }
 
       notifyListeners();
       return success;
     } catch (e) {
-      _lastError = 'Error test print: $e';
+      _lastError = 'Error saat test print: ${e.toString()}';
       notifyListeners();
       return false;
     }
   }
+
+  /// Get detailed printer status
+  String getPrinterStatusText() {
+    if (!isConnected) {
+      return 'Printer tidak terhubung';
+    }
+
+    switch (_connectionStatus) {
+      case BluetoothConnectionStatus.connected:
+        return 'Printer siap digunakan';
+      case BluetoothConnectionStatus.connecting:
+        return 'Menghubungkan ke printer...';
+      case BluetoothConnectionStatus.reconnecting:
+        return 'Menghubungkan ulang ke printer...';
+      case BluetoothConnectionStatus.disconnected:
+        return 'Printer terputus';
+    }
+  }
+
+  /// Check if printer is ready for printing
+  bool get isPrinterReady =>
+      isConnected && _connectionStatus == BluetoothConnectionStatus.connected;
 
   /// Toggle auto-reconnect
   void toggleAutoReconnect() {

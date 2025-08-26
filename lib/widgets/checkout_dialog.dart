@@ -46,6 +46,13 @@ class _CheckoutDialogState extends State<CheckoutDialog> {
         // This will trigger a rebuild and update the change calculation
       });
     });
+
+    /// Nilai Bayar Otomatis dengan total
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final cartProvider = Provider.of<CartProvider>(context, listen: false);
+      _amountController.text = cartProvider.promotionAdjustedTotal
+          .toStringAsFixed(0);
+    });
   }
 
   @override
@@ -240,7 +247,7 @@ class _CheckoutDialogState extends State<CheckoutDialog> {
 
           // Detailed discount breakdown
           ...cartProvider.discountBreakdown.entries.map(
-            (entry) => _buildSummaryRow('${entry.key}', -entry.value),
+            (entry) => _buildSummaryRow(entry.key, -entry.value),
           ),
 
           if (cartProvider.taxAmount > 0)

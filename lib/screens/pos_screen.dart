@@ -505,7 +505,7 @@ class _POSScreenState extends State<POSScreen> {
     cartProvider.addItem(product);
     cartProvider.applyPromotions(promotionProvider);
 
-    _showSuccessSnackBar('${product.name} ditambahkan ke keranjang');
+    _showSuccessSnackBar(context, '${product.name} ditambahkan ke keranjang');
   }
 
   void _showCheckoutDialog() {
@@ -555,7 +555,7 @@ class _POSScreenState extends State<POSScreen> {
       }
 
       if (mounted) {
-        _showSuccessSnackBar('Transaksi berhasil disimpan');
+        _showSuccessSnackBar(context, 'Transaksi berhasil disimpan');
       }
 
       if (mounted) {
@@ -578,7 +578,7 @@ class _POSScreenState extends State<POSScreen> {
               context.read<AuthProvider>().currentUser?.name ?? 'Kasir',
           settings: settingsProvider.settings,
           onPrint: () {
-            _showSuccessSnackBar('Struk berhasil dicetak');
+            _showSuccessSnackBar(context, 'Struk berhasil dicetak');
           },
         ),
       ),
@@ -615,35 +615,55 @@ class _POSScreenState extends State<POSScreen> {
     );
   }
 
-  void _showSuccessSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.check_circle, color: Colors.white, size: 20),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                message,
-                style: const TextStyle(fontSize: 14),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
+  void _showSuccessSnackBar(BuildContext context, String message) {
+    final overlay = Overlay.of(context);
+    final overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: 50,
+        right: 16,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.green,
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 6,
+                  offset: Offset(2, 2),
+                ),
+              ],
             ),
-          ],
-        ),
-        backgroundColor: AppTheme.successColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        duration: const Duration(seconds: 1),
-        margin: EdgeInsets.only(
-          bottom: 80, // Jarak dari tombol checkout
-          left: 16,
-          right: 16,
+            constraints: const BoxConstraints(maxWidth: 250),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white, size: 18),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    message,
+                    style: const TextStyle(fontSize: 12, color: Colors.white),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
+
+    // Tampilkan overlay
+    overlay.insert(overlayEntry);
+
+    // Auto remove setelah 2 detik
+    Future.delayed(
+      const Duration(seconds: 2),
+    ).then((_) => overlayEntry.remove());
   }
 
   void _showErrorSnackBar(String message) {

@@ -9,7 +9,7 @@ import 'dashboard_screen.dart';
 import 'pos_screen.dart';
 import 'products_screen.dart';
 import 'transactions_screen.dart';
-import 'reports_screen.dart';
+import 'reports_screen_tabbed.dart';
 import 'user_management_screen.dart';
 import 'profile_screen.dart';
 import 'cashier_reports_screen.dart';
@@ -57,13 +57,13 @@ class _MainScreenState extends State<MainScreen> {
       DashboardScreen(),
       ProductsScreen(),
       TransactionsScreen(),
-      ReportsScreen(),
+      ReportsScreenTabbed(),
       ProfileScreen(),
     ];
   }
 
   List<Widget> _getCashierScreens() {
-    return const [POSScreen(), ProfileScreen()];
+    return const [POSScreen(), CashierReportsScreen(), ProfileScreen()];
   }
 
   List<Widget> _getAdminScreens() {
@@ -72,7 +72,7 @@ class _MainScreenState extends State<MainScreen> {
       POSScreen(),
       ProductsScreen(),
       TransactionsScreen(),
-      ReportsScreen(),
+      ReportsScreenTabbed(),
       PromotionsScreen(),
       UserManagementScreen(),
       ProfileScreen(),
@@ -108,6 +108,7 @@ class _MainScreenState extends State<MainScreen> {
   List<BottomNavigationBarItem> _getCashierNavItems() {
     return const [
       BottomNavigationBarItem(icon: Icon(Icons.point_of_sale), label: 'Kasir'),
+      BottomNavigationBarItem(icon: Icon(Icons.analytics), label: 'Laporan'),
       BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
     ];
   }
@@ -521,6 +522,13 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ],
         const Divider(),
+        if (user?.role == UserRole.cashier) ...[
+          _buildDrawerItem(
+            Icons.bluetooth,
+            'Printer Bluetooth',
+            _navigateToBluetoothPrinter,
+          ),
+        ],
         _buildDrawerItem(
           Icons.person,
           'Profile',
@@ -552,7 +560,7 @@ class _MainScreenState extends State<MainScreen> {
   void _navigateToProfile(User? user) {
     setState(() {
       if (user?.role == UserRole.cashier) {
-        _currentIndex = 1;
+        _currentIndex = 2;
       } else if (user?.role == UserRole.owner) {
         _currentIndex = 4;
       } else {
@@ -602,6 +610,10 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
+  void _navigateToBluetoothPrinter() {
+    Navigator.pushNamed(context, '/bluetooth-printer');
+  }
+
   String _getScreenTitle(UserRole? role, int index) {
     switch (role) {
       case UserRole.owner:
@@ -635,6 +647,8 @@ class _MainScreenState extends State<MainScreen> {
       case 0:
         return 'Kasir';
       case 1:
+        return 'Laporan Kinerja Saya';
+      case 2:
         return 'Profile';
       default:
         return 'SFC Mobile';

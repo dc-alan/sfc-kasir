@@ -430,7 +430,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onChanged: (value) {
                         themeProvider.toggleTheme();
                       },
-                      activeColor: primaryColor,
+                      activeThumbColor: primaryColor,
                     ),
                   ],
                 ),

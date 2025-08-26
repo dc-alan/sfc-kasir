@@ -128,6 +128,7 @@ class SettingsProvider with ChangeNotifier {
     bool? autoBackup,
     int? autoBackupInterval,
     String? backupLocation,
+    int? transactionStorageDays,
   }) async {
     final updatedSettings = _settings.copyWith(
       enableNotifications: enableNotifications,
@@ -135,6 +136,17 @@ class SettingsProvider with ChangeNotifier {
       autoBackup: autoBackup,
       autoBackupInterval: autoBackupInterval,
       backupLocation: backupLocation,
+      transactionStorageDays: transactionStorageDays,
+    );
+    await updateSettings(updatedSettings);
+  }
+
+  // Transaction Storage Settings
+  Future<void> updateTransactionStorageSettings({
+    int? transactionStorageDays,
+  }) async {
+    final updatedSettings = _settings.copyWith(
+      transactionStorageDays: transactionStorageDays,
     );
     await updateSettings(updatedSettings);
   }

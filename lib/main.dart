@@ -9,10 +9,13 @@ import 'providers/promotion_provider.dart';
 import 'providers/settings_provider.dart';
 import 'providers/transaction_provider.dart';
 import 'providers/theme_provider.dart';
+import 'providers/crm_provider.dart';
+import 'providers/inventory_provider.dart';
 import 'services/database_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_screen.dart';
 import 'screens/dummy_data_screen.dart';
+import 'screens/bluetooth_printer_screen.dart';
 import 'utils/app_theme.dart';
 
 void main() async {
@@ -42,6 +45,8 @@ class CashierApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ProductProvider()),
         ChangeNotifierProvider(create: (_) => PromotionProvider()),
         ChangeNotifierProvider(create: (_) => TransactionProvider()),
+        ChangeNotifierProvider(create: (_) => CRMProvider()),
+        ChangeNotifierProvider(create: (_) => InventoryProvider()),
       ],
       child: Consumer2<ThemeProvider, SettingsProvider>(
         builder: (context, themeProvider, settingsProvider, child) {
@@ -52,7 +57,10 @@ class CashierApp extends StatelessWidget {
             themeMode: themeProvider.themeMode,
             home: const AuthWrapper(),
             debugShowCheckedModeBanner: false,
-            routes: {'/dummy-data': (context) => const DummyDataScreen()},
+            routes: {
+              '/dummy-data': (context) => const DummyDataScreen(),
+              '/bluetooth-printer': (context) => const BluetoothPrinterScreen(),
+            },
           );
         },
       ),

@@ -33,6 +33,7 @@ class AppSettings {
   final bool autoBackup;
   final int autoBackupInterval; // in hours
   final String backupLocation;
+  final int transactionStorageDays; // Storage duration for transactions in days
 
   const AppSettings({
     this.appName = 'SFC Mobile',
@@ -67,6 +68,7 @@ class AppSettings {
     this.autoBackup = false,
     this.autoBackupInterval = 24,
     this.backupLocation = 'local',
+    this.transactionStorageDays = 30, // Default 1 month
   });
 
   Map<String, dynamic> toMap() {
@@ -100,6 +102,7 @@ class AppSettings {
       'auto_backup': autoBackup ? 1 : 0,
       'auto_backup_interval': autoBackupInterval,
       'backup_location': backupLocation,
+      'transaction_storage_days': transactionStorageDays,
     };
   }
 
@@ -135,6 +138,7 @@ class AppSettings {
       autoBackup: (map['auto_backup'] ?? 0) == 1,
       autoBackupInterval: map['auto_backup_interval'] ?? 24,
       backupLocation: map['backup_location'] ?? 'local',
+      transactionStorageDays: map['transaction_storage_days'] ?? 30,
     );
   }
 
@@ -168,6 +172,7 @@ class AppSettings {
     bool? autoBackup,
     int? autoBackupInterval,
     String? backupLocation,
+    int? transactionStorageDays,
   }) {
     return AppSettings(
       appName: appName ?? this.appName,
@@ -199,6 +204,8 @@ class AppSettings {
       autoBackup: autoBackup ?? this.autoBackup,
       autoBackupInterval: autoBackupInterval ?? this.autoBackupInterval,
       backupLocation: backupLocation ?? this.backupLocation,
+      transactionStorageDays:
+          transactionStorageDays ?? this.transactionStorageDays,
     );
   }
 
@@ -235,4 +242,24 @@ class AppSettings {
     'Lato',
     'Poppins',
   ];
+
+  // Transaction storage options
+  static const Map<String, int> transactionStorageOptions = {
+    '3 Hari': 3,
+    '1 Minggu': 7,
+    '1 Bulan': 30,
+    '2 Bulan': 60,
+    '3 Bulan': 90,
+    '6 Bulan': 180,
+    '1 Tahun': 365,
+  };
+
+  String get transactionStorageDisplayName {
+    for (var entry in transactionStorageOptions.entries) {
+      if (entry.value == transactionStorageDays) {
+        return entry.key;
+      }
+    }
+    return '$transactionStorageDays Hari';
+  }
 }

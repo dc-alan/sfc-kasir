@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:open_file/open_file.dart';
 import '../providers/transaction_provider.dart';
-import '../providers/product_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/bluetooth_printer_provider.dart';
+import '../services/reports_service.dart';
 import '../utils/app_theme.dart';
 import '../utils/responsive_helper.dart';
-import '../widgets/custom_cards.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -20,6 +21,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
   DateTime? _startDate;
   DateTime? _endDate;
   String _selectedPeriod = 'Bulan Ini';
+  final ReportsService _reportsService = ReportsService();
+  bool _isExporting = false;
 
   @override
   void initState() {
@@ -79,6 +82,89 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
         return Scaffold(
           backgroundColor: Colors.grey.shade50,
+          appBar: AppBar(
+            title: const Text('Laporan Bisnis'),
+            backgroundColor: primaryColor,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            actions: [
+              Consumer<TransactionProvider>(
+                builder: (context, provider, child) {
+                  if (provider.isLoading || provider.transactions.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+
+                  return PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert),
+                    onSelected: (value) =>
+                        _handleMenuAction(value, provider, settingsProvider),
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'export_pdf_transactions',
+                        child: Row(
+                          children: [
+                            Icon(Icons.picture_as_pdf, color: Colors.red),
+                            SizedBox(width: 8),
+                            Text('Export PDF Transaksi'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'export_pdf_products',
+                        child: Row(
+                          children: [
+                            Icon(Icons.picture_as_pdf, color: Colors.red),
+                            SizedBox(width: 8),
+                            Text('Export PDF Produk'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'export_excel_transactions',
+                        child: Row(
+                          children: [
+                            Icon(Icons.table_chart, color: Colors.green),
+                            SizedBox(width: 8),
+                            Text('Export Excel Transaksi'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'export_excel_products',
+                        child: Row(
+                          children: [
+                            Icon(Icons.table_chart, color: Colors.green),
+                            SizedBox(width: 8),
+                            Text('Export Excel Produk'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'print_transactions',
+                        child: Row(
+                          children: [
+                            Icon(Icons.print, color: Colors.blue),
+                            SizedBox(width: 8),
+                            Text('Print Laporan Transaksi'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'print_products',
+                        child: Row(
+                          children: [
+                            Icon(Icons.print, color: Colors.blue),
+                            SizedBox(width: 8),
+                            Text('Print Laporan Produk'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
           body: RefreshIndicator(
             onRefresh: () async => _loadData(),
             color: primaryColor,
@@ -87,6 +173,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               child: Column(
                 children: [
                   _buildDateFilter(primaryColor),
+                  if (_isExporting) _buildExportingIndicator(),
                   _buildOverviewCards(primaryColor),
                   _buildRevenueSection(primaryColor),
                   _buildPaymentMethodSection(primaryColor),
@@ -98,6 +185,198 @@ class _ReportsScreenState extends State<ReportsScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildExportingIndicator() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: const Row(
+        children: [
+          SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          SizedBox(width: 12),
+          Text(
+            'Sedang mengekspor laporan...',
+            style: TextStyle(color: Colors.blue, fontWeight: FontWeight.w500),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleMenuAction(
+    String action,
+    TransactionProvider provider,
+    SettingsProvider settingsProvider,
+  ) async {
+    if (_startDate == null || _endDate == null) {
+      _showSnackBar('Pilih periode laporan terlebih dahulu', isError: true);
+      return;
+    }
+
+    setState(() => _isExporting = true);
+
+    try {
+      switch (action) {
+        case 'export_pdf_transactions':
+          await _exportTransactionsPDF(provider, settingsProvider);
+          break;
+        case 'export_pdf_products':
+          await _exportProductsPDF(provider, settingsProvider);
+          break;
+        case 'export_excel_transactions':
+          await _exportTransactionsExcel(provider, settingsProvider);
+          break;
+        case 'export_excel_products':
+          await _exportProductsExcel(provider, settingsProvider);
+          break;
+        case 'print_transactions':
+          await _printTransactionsReport(provider, settingsProvider);
+          break;
+        case 'print_products':
+          await _printProductsReport(provider, settingsProvider);
+          break;
+      }
+    } catch (e) {
+      _showSnackBar('Gagal mengekspor laporan: $e', isError: true);
+    } finally {
+      setState(() => _isExporting = false);
+    }
+  }
+
+  Future<void> _exportTransactionsPDF(
+    TransactionProvider provider,
+    SettingsProvider settingsProvider,
+  ) async {
+    final file = await _reportsService.generateTransactionsPDF(
+      transactions: provider.transactions,
+      startDate: _startDate!,
+      endDate: _endDate!,
+      settings: settingsProvider.settings,
+    );
+
+    await OpenFile.open(file.path);
+    _showSnackBar('Laporan PDF transaksi berhasil dibuat');
+  }
+
+  Future<void> _exportProductsPDF(
+    TransactionProvider provider,
+    SettingsProvider settingsProvider,
+  ) async {
+    final file = await _reportsService.generateProductsPDF(
+      transactions: provider.transactions,
+      startDate: _startDate!,
+      endDate: _endDate!,
+      settings: settingsProvider.settings,
+    );
+
+    await OpenFile.open(file.path);
+    _showSnackBar('Laporan PDF produk berhasil dibuat');
+  }
+
+  Future<void> _exportTransactionsExcel(
+    TransactionProvider provider,
+    SettingsProvider settingsProvider,
+  ) async {
+    final file = await _reportsService.generateTransactionsExcel(
+      transactions: provider.transactions,
+      startDate: _startDate!,
+      endDate: _endDate!,
+      settings: settingsProvider.settings,
+    );
+
+    await OpenFile.open(file.path);
+    _showSnackBar('Laporan Excel transaksi berhasil dibuat');
+  }
+
+  Future<void> _exportProductsExcel(
+    TransactionProvider provider,
+    SettingsProvider settingsProvider,
+  ) async {
+    final file = await _reportsService.generateProductsExcel(
+      transactions: provider.transactions,
+      startDate: _startDate!,
+      endDate: _endDate!,
+      settings: settingsProvider.settings,
+    );
+
+    await OpenFile.open(file.path);
+    _showSnackBar('Laporan Excel produk berhasil dibuat');
+  }
+
+  Future<void> _printTransactionsReport(
+    TransactionProvider provider,
+    SettingsProvider settingsProvider,
+  ) async {
+    final printerProvider = context.read<BluetoothPrinterProvider>();
+
+    if (!printerProvider.isConnected) {
+      _showSnackBar(
+        'Printer tidak terhubung. Hubungkan printer terlebih dahulu.',
+        isError: true,
+      );
+      return;
+    }
+
+    final success = await _reportsService.printTransactionsReport(
+      transactions: provider.transactions,
+      startDate: _startDate!,
+      endDate: _endDate!,
+      settings: settingsProvider.settings,
+    );
+
+    if (success) {
+      _showSnackBar('Laporan transaksi berhasil dicetak');
+    } else {
+      _showSnackBar('Gagal mencetak laporan transaksi', isError: true);
+    }
+  }
+
+  Future<void> _printProductsReport(
+    TransactionProvider provider,
+    SettingsProvider settingsProvider,
+  ) async {
+    final printerProvider = context.read<BluetoothPrinterProvider>();
+
+    if (!printerProvider.isConnected) {
+      _showSnackBar(
+        'Printer tidak terhubung. Hubungkan printer terlebih dahulu.',
+        isError: true,
+      );
+      return;
+    }
+
+    final success = await _reportsService.printProductsReport(
+      transactions: provider.transactions,
+      startDate: _startDate!,
+      endDate: _endDate!,
+      settings: settingsProvider.settings,
+    );
+
+    if (success) {
+      _showSnackBar('Laporan produk berhasil dicetak');
+    } else {
+      _showSnackBar('Gagal mencetak laporan produk', isError: true);
+    }
+  }
+
+  void _showSnackBar(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : Colors.green,
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 
@@ -124,10 +403,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.analytics, color: primaryColor, size: 18),
+              Icon(Icons.date_range, color: primaryColor, size: 18),
               const SizedBox(width: 8),
               Text(
-                'Laporan Bisnis',
+                'Filter Periode',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -190,7 +469,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         ),
                         onSelected: (selected) {
                           if (period == 'Custom') {
-                            _showCustomDatePicker();
+                            _showCustomDateTimePicker();
                           } else {
                             _setDateRange(period);
                             _loadData();
@@ -748,28 +1027,45 @@ class _ReportsScreenState extends State<ReportsScreen> {
       return 'Semua periode';
     }
 
-    final formatter = DateFormat('dd/MM/yyyy');
+    final formatter = DateFormat('dd/MM/yyyy HH:mm');
     final start = formatter.format(_startDate!);
     final end = formatter.format(_endDate!.subtract(const Duration(days: 1)));
 
-    if (start == end) {
-      return start;
+    if (DateFormat('dd/MM/yyyy').format(_startDate!) ==
+        DateFormat(
+          'dd/MM/yyyy',
+        ).format(_endDate!.subtract(const Duration(days: 1)))) {
+      return DateFormat('dd/MM/yyyy').format(_startDate!);
     }
 
-    return '$start - $end';
+    return '${DateFormat('dd/MM/yyyy').format(_startDate!)} - ${DateFormat('dd/MM/yyyy').format(_endDate!.subtract(const Duration(days: 1)))}';
   }
 
-  void _showCustomDatePicker() async {
+  void _showCustomDateTimePicker() async {
+    // Prepare initial date range, ensuring end date is not after today
+    DateTimeRange? initialRange;
+    if (_startDate != null && _endDate != null) {
+      final now = DateTime.now();
+      final endDate = _endDate!.subtract(const Duration(days: 1));
+
+      // Ensure end date is not after today
+      final validEndDate = endDate.isAfter(now)
+          ? DateTime(now.year, now.month, now.day)
+          : endDate;
+
+      // Ensure start date is not after end date
+      final validStartDate = _startDate!.isAfter(validEndDate)
+          ? validEndDate
+          : _startDate!;
+
+      initialRange = DateTimeRange(start: validStartDate, end: validEndDate);
+    }
+
     final DateTimeRange? picked = await showDateRangePicker(
       context: context,
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
-      initialDateRange: _startDate != null && _endDate != null
-          ? DateTimeRange(
-              start: _startDate!,
-              end: _endDate!.subtract(const Duration(days: 1)),
-            )
-          : null,
+      initialDateRange: initialRange,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -791,12 +1087,76 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
 
     if (picked != null) {
-      setState(() {
-        _selectedPeriod = 'Custom';
-        _startDate = picked.start;
-        _endDate = picked.end.add(const Duration(days: 1));
-      });
-      _loadData();
+      // Show time picker for start date
+      final TimeOfDay? startTime = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.now(),
+        builder: (context, child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: Theme.of(context).colorScheme.copyWith(
+                primary: Color(
+                  int.parse(
+                    context
+                        .read<SettingsProvider>()
+                        .settings
+                        .primaryColor
+                        .replaceAll('#', '0xFF'),
+                  ),
+                ),
+              ),
+            ),
+            child: child!,
+          );
+        },
+      );
+
+      if (startTime != null) {
+        // Show time picker for end date
+        final TimeOfDay? endTime = await showTimePicker(
+          context: context,
+          initialTime: const TimeOfDay(hour: 23, minute: 59),
+          builder: (context, child) {
+            return Theme(
+              data: Theme.of(context).copyWith(
+                colorScheme: Theme.of(context).colorScheme.copyWith(
+                  primary: Color(
+                    int.parse(
+                      context
+                          .read<SettingsProvider>()
+                          .settings
+                          .primaryColor
+                          .replaceAll('#', '0xFF'),
+                    ),
+                  ),
+                ),
+              ),
+              child: child!,
+            );
+          },
+        );
+
+        if (endTime != null) {
+          setState(() {
+            _selectedPeriod = 'Custom';
+            _startDate = DateTime(
+              picked.start.year,
+              picked.start.month,
+              picked.start.day,
+              startTime.hour,
+              startTime.minute,
+            );
+            _endDate = DateTime(
+              picked.end.year,
+              picked.end.month,
+              picked.end.day,
+              endTime.hour,
+              endTime.minute,
+            );
+          });
+          _loadData();
+        }
+      }
     }
   }
 

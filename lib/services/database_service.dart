@@ -29,7 +29,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 6,
+      version: 10,
       onCreate: _createTables,
       onUpgrade: _onUpgrade,
     );
@@ -83,12 +83,44 @@ class DatabaseService {
     }
 
     if (oldVersion < 7) {
-      // Add last_login_at column to users table
+      // Add missing columns to users table
       try {
         await db.execute('ALTER TABLE users ADD COLUMN last_login_at TEXT');
         print('Successfully added last_login_at column to users table');
       } catch (e) {
         print('Error adding last_login_at column (may already exist): $e');
+      }
+    }
+
+    if (oldVersion < 8) {
+      // Add avatar_url and phone columns to users table
+      try {
+        await db.execute('ALTER TABLE users ADD COLUMN avatar_url TEXT');
+        await db.execute('ALTER TABLE users ADD COLUMN phone TEXT');
+        await db.execute(
+          'ALTER TABLE users ADD COLUMN custom_permissions TEXT',
+        );
+        print(
+          'Successfully added avatar_url, phone, and custom_permissions columns to users table',
+        );
+      } catch (e) {
+        print('Error adding user columns (may already exist): $e');
+      }
+    }
+
+    if (oldVersion < 9) {
+      // Add transaction_storage_days column to app_settings table
+      try {
+        await db.execute(
+          'ALTER TABLE app_settings ADD COLUMN transaction_storage_days INTEGER NOT NULL DEFAULT 30',
+        );
+        print(
+          'Successfully added transaction_storage_days column to app_settings table',
+        );
+      } catch (e) {
+        print(
+          'Error adding transaction_storage_days column (may already exist): $e',
+        );
       }
     }
   }
@@ -613,7 +645,10 @@ class DatabaseService {
         is_active INTEGER NOT NULL DEFAULT 1,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
-        last_login_at TEXT
+        last_login_at TEXT,
+        avatar_url TEXT,
+        phone TEXT,
+        custom_permissions TEXT
       )
     ''');
 
@@ -711,7 +746,8 @@ class DatabaseService {
         enable_sounds INTEGER NOT NULL DEFAULT 1,
         auto_backup INTEGER NOT NULL DEFAULT 0,
         auto_backup_interval INTEGER NOT NULL DEFAULT 24,
-        backup_location TEXT NOT NULL DEFAULT 'local'
+        backup_location TEXT NOT NULL DEFAULT 'local',
+        transaction_storage_days INTEGER NOT NULL DEFAULT 30
       )
     ''');
 
@@ -1759,6 +1795,112 @@ class DatabaseService {
     } catch (e) {
       print('Error clearing module permissions: $e');
       rethrow;
+    }
+  }
+
+  // Transaction Storage Management
+  /// Delete transactions older than specified days
+  Future<int> deleteOldTransactions(int storageDays) async {
+    try {
+      final db = await database;
+      final cutoffDate = DateTime.now().subtract(Duration(days: storageDays));
+
+      // First, delete transaction items for old transactions
+      final deletedItemsCount = await db.rawDelete(
+        '''
+        DELETE FROM transaction_items 
+        WHERE transaction_id IN (
+          SELECT id FROM transactions 
+          WHERE created_at < ?
+        )
+        ''',
+        [cutoffDate.toIso8601String()],
+      );
+
+      // Then delete the transactions themselves
+      final deletedTransactionsCount = await db.delete(
+        'transactions',
+        where: 'created_at < ?',
+        whereArgs: [cutoffDate.toIso8601String()],
+      );
+
+      print(
+        'Deleted $deletedTransactionsCount old transactions and $deletedItemsCount transaction items',
+      );
+      return deletedTransactionsCount;
+    } catch (e) {
+      print('Error deleting old transactions: $e');
+      rethrow;
+    }
+  }
+
+  /// Delete all transactions (for complete cleanup)
+  Future<int> deleteAllTransactions() async {
+    try {
+      final db = await database;
+
+      // First, delete all transaction items
+      final deletedItemsCount = await db.delete('transaction_items');
+
+      // Then delete all transactions
+      final deletedTransactionsCount = await db.delete('transactions');
+
+      print(
+        'Deleted all transactions: $deletedTransactionsCount transactions and $deletedItemsCount transaction items',
+      );
+      return deletedTransactionsCount;
+    } catch (e) {
+      print('Error deleting all transactions: $e');
+      rethrow;
+    }
+  }
+
+  /// Get count of transactions older than specified days
+  Future<int> getOldTransactionsCount(int storageDays) async {
+    try {
+      final db = await database;
+      final cutoffDate = DateTime.now().subtract(Duration(days: storageDays));
+
+      final result = await db.rawQuery(
+        'SELECT COUNT(*) as count FROM transactions WHERE created_at < ?',
+        [cutoffDate.toIso8601String()],
+      );
+
+      return result.first['count'] as int;
+    } catch (e) {
+      print('Error getting old transactions count: $e');
+      return 0;
+    }
+  }
+
+  /// Get total transactions count
+  Future<int> getTotalTransactionsCount() async {
+    try {
+      final db = await database;
+
+      final result = await db.rawQuery(
+        'SELECT COUNT(*) as count FROM transactions',
+      );
+
+      return result.first['count'] as int;
+    } catch (e) {
+      print('Error getting total transactions count: $e');
+      return 0;
+    }
+  }
+
+  /// Clean up transactions based on current storage settings
+  Future<int> cleanupTransactionsBasedOnSettings() async {
+    try {
+      final settings = await getAppSettings();
+      if (settings != null) {
+        final storageDays = settings['transaction_storage_days'] ?? 30;
+        return await deleteOldTransactions(storageDays);
+      }
+      return 0;
+    } catch (e) {
+      print('Error cleaning up transactions based on settings: $e');
+      return 0;
     }
   }
 }

@@ -498,7 +498,7 @@ class _BluetoothPrinterScreenState extends State<BluetoothPrinterScreen>
                         value: printerProvider.autoReconnectEnabled,
                         onChanged: (value) =>
                             printerProvider.setAutoReconnect(value),
-                        activeColor: primaryColor,
+                        activeThumbColor: primaryColor,
                       ),
                     ],
                   ),

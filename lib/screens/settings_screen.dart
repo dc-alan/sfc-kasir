@@ -4,6 +4,8 @@ import '../providers/settings_provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/user.dart';
+import '../models/app_settings.dart';
+import '../services/database_service.dart';
 import 'bluetooth_printer_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -176,6 +178,162 @@ class _SettingsScreenState extends State<SettingsScreen>
           duration: const Duration(seconds: 3),
         ),
       );
+    }
+  }
+
+  void _showTransactionStorageDialog(
+    BuildContext context,
+    SettingsProvider provider,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Kapasitas Penyimpanan Transaksi'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: AppSettings.transactionStorageOptions.entries
+              .map(
+                (entry) => RadioListTile<int>(
+                  title: Text(entry.key),
+                  subtitle: Text('${entry.value} hari'),
+                  value: entry.value,
+                  groupValue: provider.settings.transactionStorageDays,
+                  onChanged: (value) async {
+                    if (value != null) {
+                      try {
+                        await provider.updateTransactionStorageSettings(
+                          transactionStorageDays: value,
+                        );
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Kapasitas penyimpanan diubah ke ${entry.key}',
+                            ),
+                            backgroundColor: Colors.green,
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      } catch (e) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error: $e'),
+                            backgroundColor: Colors.red,
+                            duration: const Duration(seconds: 3),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                ),
+              )
+              .toList(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteAllTransactionsDialog(
+    BuildContext context,
+    SettingsProvider provider,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus Semua Transaksi'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Apakah Anda yakin ingin menghapus SEMUA data transaksi penjualan?',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 8),
+            Text('⚠️ Peringatan:'),
+            Text('• Semua riwayat transaksi akan dihapus permanen'),
+            Text('• Data laporan penjualan akan hilang'),
+            Text('• Tindakan ini TIDAK DAPAT dibatalkan'),
+            SizedBox(height: 8),
+            Text(
+              'Pastikan Anda telah membuat backup data sebelum melanjutkan.',
+              style: TextStyle(fontStyle: FontStyle.italic),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _performDeleteAllTransactions(context);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text(
+              'Hapus Semua',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _performDeleteAllTransactions(BuildContext context) async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Menghapus semua transaksi...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      // Import DatabaseService
+      final databaseService = DatabaseService();
+      final deletedCount = await databaseService.deleteAllTransactions();
+
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading dialog
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ Berhasil menghapus $deletedCount transaksi'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading dialog
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Gagal menghapus transaksi: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -636,6 +794,32 @@ class _SettingsScreenState extends State<SettingsScreen>
                   ),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                   onTap: () => _showBackupLocationDialog(context, provider),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          _buildSectionHeader('Manajemen Data Transaksi'),
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  title: const Text('Kapasitas Penyimpanan Transaksi'),
+                  subtitle: Text(
+                    provider.settings.transactionStorageDisplayName,
+                  ),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () => _showTransactionStorageDialog(context, provider),
+                ),
+                ListTile(
+                  title: const Text('Hapus Semua Transaksi Penjualan'),
+                  subtitle: const Text(
+                    'Hapus seluruh data transaksi penjualan',
+                  ),
+                  trailing: const Icon(Icons.delete_forever, color: Colors.red),
+                  onTap: () =>
+                      _showDeleteAllTransactionsDialog(context, provider),
                 ),
               ],
             ),

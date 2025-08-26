@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'package:fl_chart/fl_chart.dart';
-import '../services/database_service.dart';
+import 'package:open_file/open_file.dart';
+import '../providers/transaction_provider.dart';
+import '../providers/settings_provider.dart';
+import '../providers/bluetooth_printer_provider.dart';
 import '../providers/auth_provider.dart';
+import '../services/reports_service.dart';
 import '../utils/app_theme.dart';
+import '../utils/responsive_helper.dart';
 
 class CashierReportsScreen extends StatefulWidget {
   const CashierReportsScreen({super.key});
@@ -16,29 +20,22 @@ class CashierReportsScreen extends StatefulWidget {
 class _CashierReportsScreenState extends State<CashierReportsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final DatabaseService _databaseService = DatabaseService();
-
   DateTime? _startDate;
   DateTime? _endDate;
-
-  Map<String, dynamic>? _selectedCashierReport;
-  List<Map<String, dynamic>> _allCashiersPerformance = [];
-  List<Map<String, dynamic>> _cashierRanking = [];
-
-  bool _isLoading = true;
-  String _selectedCashierId = '';
+  String _selectedPeriod = 'Bulan Ini';
+  final ReportsService _reportsService = ReportsService();
+  bool _isExporting = false;
+  bool _isLoading = false;
+  Map<String, dynamic>? _cashierReport;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-
-    // Set default date range to current month
-    final now = DateTime.now();
-    _startDate = DateTime(now.year, now.month, 1);
-    _endDate = DateTime(now.year, now.month + 1, 1);
-
-    _loadData();
+    _tabController = TabController(length: 2, vsync: this);
+    _setDateRange('Bulan Ini');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadCashierData();
+    });
   }
 
   @override
@@ -47,232 +44,399 @@ class _CashierReportsScreenState extends State<CashierReportsScreen>
     super.dispose();
   }
 
-  Future<void> _loadData() async {
+  void _setDateRange(String period) {
+    final now = DateTime.now();
     setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      // Load all cashiers performance
-      final performance = await _databaseService.getAllCashiersPerformance(
-        startDate: _startDate,
-        endDate: _endDate,
-      );
-
-      // Load cashier ranking
-      final ranking = await _databaseService.getCashierRanking(
-        startDate: _startDate,
-        endDate: _endDate,
-        sortBy: 'revenue',
-      );
-
-      setState(() {
-        _allCashiersPerformance = performance;
-        _cashierRanking = ranking;
-
-        // Set default selected cashier to current user if available
-        final currentUser = context.read<AuthProvider>().currentUser;
-        if (currentUser != null && performance.isNotEmpty) {
-          _selectedCashierId = currentUser.id;
-          _loadCashierReport(_selectedCashierId);
-        }
-
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error loading data: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+      _selectedPeriod = period;
+      switch (period) {
+        case 'Hari Ini':
+          _startDate = DateTime(now.year, now.month, now.day);
+          _endDate = _startDate!.add(const Duration(days: 1));
+          break;
+        case 'Minggu Ini':
+          final weekday = now.weekday;
+          _startDate = DateTime(now.year, now.month, now.day - weekday + 1);
+          _endDate = _startDate!.add(const Duration(days: 7));
+          break;
+        case 'Bulan Ini':
+          _startDate = DateTime(now.year, now.month, 1);
+          _endDate = DateTime(now.year, now.month + 1, 1);
+          break;
+        case '3 Bulan':
+          _startDate = DateTime(now.year, now.month - 2, 1);
+          _endDate = DateTime(now.year, now.month + 1, 1);
+          break;
+        case 'Tahun Ini':
+          _startDate = DateTime(now.year, 1, 1);
+          _endDate = DateTime(now.year + 1, 1, 1);
+          break;
       }
-    }
+    });
   }
 
-  Future<void> _loadCashierReport(String cashierId) async {
+  void _loadCashierData() async {
+    final authProvider = context.read<AuthProvider>();
+    if (authProvider.currentUser == null) return;
+
+    setState(() => _isLoading = true);
+
     try {
-      final report = await _databaseService.getCashierReport(
-        cashierId,
+      // Load transactions for this cashier (filtered by cashier ID)
+      context.read<TransactionProvider>().loadTransactions(
         startDate: _startDate,
         endDate: _endDate,
       );
 
       setState(() {
-        _selectedCashierReport = report;
+        _cashierReport = {
+          'cashier_info': {
+            'name': authProvider.currentUser!.name,
+            'username': authProvider.currentUser!.username,
+          },
+          'period': {
+            'start_date':
+                _startDate?.toIso8601String() ??
+                DateTime.now().toIso8601String(),
+            'end_date':
+                _endDate?.toIso8601String() ?? DateTime.now().toIso8601String(),
+          },
+        };
       });
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error loading cashier report: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      _showSnackBar('Gagal memuat data laporan: $e', isError: true);
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Laporan Kasir'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.date_range),
-            onPressed: _showDateRangePicker,
+    return Consumer<SettingsProvider>(
+      builder: (context, settingsProvider, child) {
+        final primaryColor = Color(
+          int.parse(
+            settingsProvider.settings.primaryColor.replaceAll('#', '0xFF'),
           ),
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadData),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Individual'),
-            Tab(text: 'Perbandingan'),
-            Tab(text: 'Ranking'),
-          ],
-        ),
-      ),
-      body: Column(
-        children: [
-          // Date range indicator
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            color: Theme.of(context).primaryColor.withOpacity(0.1),
-            child: Row(
-              children: [
-                const Icon(Icons.calendar_today, size: 16),
-                const SizedBox(width: 8),
-                Text(
-                  _getDateRangeText(),
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+        );
+
+        return Scaffold(
+          backgroundColor: Colors.grey.shade50,
+          appBar: AppBar(
+            title: const Text('Laporan Kasir'),
+            backgroundColor: primaryColor,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            bottom: TabBar(
+              controller: _tabController,
+              indicatorColor: Colors.white,
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.white70,
+              tabs: const [
+                Tab(
+                  text: 'Laporan Transaksi',
+                  icon: Icon(Icons.receipt_long, size: 20),
+                ),
+                Tab(
+                  text: 'Laporan Produk',
+                  icon: Icon(Icons.inventory, size: 20),
                 ),
               ],
             ),
-          ),
+            actions: [
+              Consumer<TransactionProvider>(
+                builder: (context, provider, child) {
+                  if (_isLoading || provider.transactions.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
 
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildIndividualTab(),
-                      _buildComparisonTab(),
-                      _buildRankingTab(),
+                  return PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert),
+                    onSelected: (value) =>
+                        _handleMenuAction(value, provider, settingsProvider),
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'print_transactions',
+                        child: Row(
+                          children: [
+                            Icon(Icons.print, color: Colors.blue),
+                            SizedBox(width: 8),
+                            Text('Print Laporan Transaksi'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'print_products',
+                        child: Row(
+                          children: [
+                            Icon(Icons.print, color: Colors.blue),
+                            SizedBox(width: 8),
+                            Text('Print Laporan Produk'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'export_pdf_transactions',
+                        child: Row(
+                          children: [
+                            Icon(Icons.picture_as_pdf, color: Colors.red),
+                            SizedBox(width: 8),
+                            Text('Export PDF Transaksi'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'export_pdf_products',
+                        child: Row(
+                          children: [
+                            Icon(Icons.picture_as_pdf, color: Colors.red),
+                            SizedBox(width: 8),
+                            Text('Export PDF Produk'),
+                          ],
+                        ),
+                      ),
                     ],
-                  ),
+                  );
+                },
+              ),
+              // Bluetooth printer connection status
+              Consumer<BluetoothPrinterProvider>(
+                builder: (context, printerProvider, child) {
+                  return IconButton(
+                    icon: Icon(
+                      printerProvider.isConnected
+                          ? Icons.bluetooth_connected
+                          : Icons.bluetooth_disabled,
+                      color: printerProvider.isConnected
+                          ? Colors.green
+                          : Colors.white70,
+                    ),
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/bluetooth-printer');
+                    },
+                    tooltip: printerProvider.isConnected
+                        ? 'Printer Terhubung'
+                        : 'Hubungkan Printer',
+                  );
+                },
+              ),
+            ],
           ),
-        ],
-      ),
+          body: Column(
+            children: [
+              _buildDateFilter(primaryColor),
+              if (_isExporting) _buildExportingIndicator(),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildTransactionsTab(primaryColor),
+                    _buildProductsTab(primaryColor),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildIndividualTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+  Widget _buildDateFilter(Color primaryColor) {
+    return Container(
+      margin: EdgeInsets.symmetric(
+        horizontal: ResponsiveHelper.isMobile(context) ? 12 : 16,
+        vertical: ResponsiveHelper.isMobile(context) ? 8 : 12,
+      ),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Cashier Selector
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Pilih Kasir',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    value: _selectedCashierId.isEmpty
-                        ? null
-                        : _selectedCashierId,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                    ),
-                    items: _allCashiersPerformance.map((cashier) {
-                      return DropdownMenuItem<String>(
-                        value: cashier['id'],
-                        child: Text(cashier['name']),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() {
-                          _selectedCashierId = value;
-                        });
-                        _loadCashierReport(value);
-                      }
-                    },
-                    hint: const Text('Pilih kasir...'),
-                  ),
-                ],
+          Row(
+            children: [
+              Icon(Icons.date_range, color: primaryColor, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                'Filter Periode',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade800,
+                ),
               ),
+              const Spacer(),
+              Text(
+                _getDateRangeText(),
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 32,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children:
+                  [
+                    'Hari Ini',
+                    'Minggu Ini',
+                    'Bulan Ini',
+                    '3 Bulan',
+                    'Tahun Ini',
+                    'Custom',
+                  ].map((period) {
+                    final isSelected =
+                        period == _selectedPeriod ||
+                        (period == 'Custom' &&
+                            ![
+                              'Hari Ini',
+                              'Minggu Ini',
+                              'Bulan Ini',
+                              '3 Bulan',
+                              'Tahun Ini',
+                            ].contains(_selectedPeriod));
+
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: FilterChip(
+                        label: Text(
+                          period,
+                          style: TextStyle(
+                            color: isSelected ? Colors.white : primaryColor,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 12,
+                          ),
+                        ),
+                        selected: isSelected,
+                        selectedColor: primaryColor,
+                        backgroundColor: primaryColor.withOpacity(0.1),
+                        checkmarkColor: Colors.white,
+                        side: BorderSide(
+                          color: isSelected
+                              ? primaryColor
+                              : primaryColor.withOpacity(0.3),
+                        ),
+                        onSelected: (selected) {
+                          if (period == 'Custom') {
+                            _showCustomDateTimePicker();
+                          } else {
+                            _setDateRange(period);
+                            _loadCashierData();
+                          }
+                        },
+                        elevation: isSelected ? 2 : 0,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    );
+                  }).toList(),
             ),
           ),
-
-          const SizedBox(height: 16),
-
-          // Individual Report
-          if (_selectedCashierReport != null) ...[
-            _buildCashierSummaryCards(),
-            const SizedBox(height: 16),
-            _buildDailyPerformanceChart(),
-            const SizedBox(height: 16),
-            _buildTopProductsList(),
-            const SizedBox(height: 16),
-            _buildPaymentMethodsChart(),
-          ] else
-            const Center(child: Text('Pilih kasir untuk melihat laporan')),
         ],
       ),
     );
   }
 
-  Widget _buildComparisonTab() {
-    return SingleChildScrollView(
+  Widget _buildExportingIndicator() {
+    return Container(
+      margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: const Row(
         children: [
-          const Text(
-            'Perbandingan Performa Kasir',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
           ),
-          const SizedBox(height: 16),
+          SizedBox(width: 12),
+          Text(
+            'Sedang memproses laporan...',
+            style: TextStyle(color: Colors.blue, fontWeight: FontWeight.w500),
+          ),
+        ],
+      ),
+    );
+  }
 
-          // Comparison Cards
-          ..._allCashiersPerformance.map(
-            (cashier) => Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              child: Padding(
+  Widget _buildTransactionsTab(Color primaryColor) {
+    return Consumer<TransactionProvider>(
+      builder: (context, provider, child) {
+        if (_isLoading) {
+          return _buildLoadingIndicator();
+        }
+
+        if (provider.transactions.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.receipt_long, size: 64, color: Colors.grey),
+                SizedBox(height: 16),
+                Text(
+                  'Tidak ada transaksi pada periode ini',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return RefreshIndicator(
+          onRefresh: () async => _loadCashierData(),
+          color: primaryColor,
+          child: ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.symmetric(
+              horizontal: ResponsiveHelper.isMobile(context) ? 12 : 16,
+              vertical: 8,
+            ),
+            itemCount: provider.transactions.length,
+            itemBuilder: (context, index) {
+              final transaction = provider.transactions[index];
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        CircleAvatar(
-                          backgroundColor: AppTheme.primaryColor,
-                          child: Text(
-                            cashier['name'].substring(0, 1).toUpperCase(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: primaryColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Icon(
+                            Icons.receipt,
+                            color: primaryColor,
+                            size: 20,
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -281,468 +445,492 @@ class _CashierReportsScreenState extends State<CashierReportsScreen>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                cashier['name'],
+                                'Transaksi #${transaction.id}',
                                 style: const TextStyle(
-                                  fontSize: 16,
                                   fontWeight: FontWeight.bold,
+                                  fontSize: 14,
                                 ),
                               ),
                               Text(
-                                '@${cashier['username']}',
-                                style: TextStyle(color: Colors.grey.shade600),
+                                DateFormat(
+                                  'dd/MM/yyyy HH:mm',
+                                ).format(transaction.createdAt),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
                               ),
                             ],
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildMetricItem(
-                            'Transaksi',
-                            '${cashier['total_transactions']}',
-                            Icons.receipt_long,
-                            Colors.blue,
-                          ),
-                        ),
-                        Expanded(
-                          child: _buildMetricItem(
-                            'Pendapatan',
-                            NumberFormat.currency(
-                              locale: 'id_ID',
-                              symbol: 'Rp ',
-                              decimalDigits: 0,
-                            ).format(
-                              (cashier['total_revenue'] ?? 0).toDouble(),
-                            ),
-                            Icons.attach_money,
-                            Colors.green,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildMetricItem(
-                            'Rata-rata',
-                            NumberFormat.currency(
-                              locale: 'id_ID',
-                              symbol: 'Rp ',
-                              decimalDigits: 0,
-                            ).format(
-                              (cashier['avg_transaction_value'] ?? 0)
-                                  .toDouble(),
-                            ),
-                            Icons.trending_up,
-                            Colors.orange,
-                          ),
-                        ),
-                        Expanded(
-                          child: _buildMetricItem(
-                            'Hari Aktif',
-                            '${cashier['active_days']}',
-                            Icons.calendar_today,
-                            Colors.purple,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRankingTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Ranking Kasir',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-
-          // Ranking List
-          ..._cashierRanking.asMap().entries.map((entry) {
-            final index = entry.key;
-            final cashier = entry.value;
-
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              child: ListTile(
-                leading: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: _getRankColor(index),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      '${index + 1}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-                title: Text(
-                  cashier['name'],
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                subtitle: Text('${cashier['total_transactions']} transaksi'),
-                trailing: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      NumberFormat.currency(
-                        locale: 'id_ID',
-                        symbol: 'Rp ',
-                        decimalDigits: 0,
-                      ).format((cashier['total_revenue'] ?? 0).toDouble()),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green,
-                      ),
-                    ),
-                    if (index == 0)
-                      const Icon(
-                        Icons.emoji_events,
-                        color: Colors.amber,
-                        size: 16,
-                      ),
-                  ],
-                ),
-              ),
-            );
-          }),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCashierSummaryCards() {
-    final summary = _selectedCashierReport!['summary'];
-
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 1.5,
-      children: [
-        _buildSummaryCard(
-          'Total Transaksi',
-          '${summary['total_transactions'] ?? 0}',
-          Icons.receipt_long,
-          Colors.blue,
-        ),
-        _buildSummaryCard(
-          'Total Pendapatan',
-          NumberFormat.currency(
-            locale: 'id_ID',
-            symbol: 'Rp ',
-            decimalDigits: 0,
-          ).format((summary['total_revenue'] ?? 0).toDouble()),
-          Icons.attach_money,
-          Colors.green,
-        ),
-        _buildSummaryCard(
-          'Rata-rata Transaksi',
-          NumberFormat.currency(
-            locale: 'id_ID',
-            symbol: 'Rp ',
-            decimalDigits: 0,
-          ).format((summary['avg_transaction_value'] ?? 0).toDouble()),
-          Icons.trending_up,
-          Colors.orange,
-        ),
-        _buildSummaryCard(
-          'Transaksi Tertinggi',
-          NumberFormat.currency(
-            locale: 'id_ID',
-            symbol: 'Rp ',
-            decimalDigits: 0,
-          ).format((summary['max_transaction'] ?? 0).toDouble()),
-          Icons.star,
-          Colors.purple,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSummaryCard(
-    String title,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 32, color: color),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMetricItem(
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Column(
-      children: [
-        Icon(icon, color: color, size: 20),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: color,
-            fontSize: 14,
-          ),
-        ),
-        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-      ],
-    );
-  }
-
-  Widget _buildDailyPerformanceChart() {
-    final dailyPerformance =
-        _selectedCashierReport!['daily_performance'] as List;
-
-    if (dailyPerformance.isEmpty) {
-      return const Card(
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: Center(child: Text('Tidak ada data performa harian')),
-        ),
-      );
-    }
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Performa Harian',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 200,
-              child: LineChart(
-                LineChartData(
-                  gridData: const FlGridData(show: true),
-                  titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 60,
-                        getTitlesWidget: (value, meta) {
-                          return Text(
-                            NumberFormat.compact().format(value),
-                            style: const TextStyle(fontSize: 10),
-                          );
-                        },
-                      ),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          if (value.toInt() < dailyPerformance.length) {
-                            final date = DateTime.parse(
-                              dailyPerformance[value.toInt()]['date'],
-                            );
-                            return Text(
-                              DateFormat('dd/MM').format(date),
-                              style: const TextStyle(fontSize: 10),
-                            );
-                          }
-                          return const Text('');
-                        },
-                      ),
-                    ),
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                  ),
-                  borderData: FlBorderData(show: true),
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: dailyPerformance.asMap().entries.map((entry) {
-                        return FlSpot(
-                          entry.key.toDouble(),
-                          entry.value['daily_revenue'].toDouble(),
-                        );
-                      }).toList(),
-                      isCurved: true,
-                      color: AppTheme.primaryColor,
-                      barWidth: 3,
-                      dotData: const FlDotData(show: true),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTopProductsList() {
-    final topProducts = _selectedCashierReport!['top_products'] as List;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Produk Terlaris',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            if (topProducts.isEmpty)
-              const Center(child: Text('Tidak ada data penjualan produk'))
-            else
-              ...topProducts
-                  .take(5)
-                  .map(
-                    (product) => ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-                        child: Icon(
-                          Icons.fastfood,
-                          color: AppTheme.primaryColor,
-                        ),
-                      ),
-                      title: Text(product['product_name']),
-                      subtitle: Text(product['category']),
-                      trailing: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade100,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Text(
-                          '${product['total_quantity']} terjual',
+                        Text(
+                          NumberFormat.currency(
+                            locale: 'id_ID',
+                            symbol: 'Rp ',
+                            decimalDigits: 0,
+                          ).format(transaction.total),
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: Colors.green.shade700,
+                            color: AppTheme.successColor,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            _getPaymentMethodIcon(
+                              transaction.paymentMethod
+                                  .toString()
+                                  .split('.')
+                                  .last,
+                            ),
+                            size: 16,
+                            color: Colors.grey.shade600,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _getPaymentMethodText(
+                              transaction.paymentMethod
+                                  .toString()
+                                  .split('.')
+                                  .last,
+                            ),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            '${transaction.items.length} item',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildProductsTab(Color primaryColor) {
+    return Consumer<TransactionProvider>(
+      builder: (context, provider, child) {
+        if (_isLoading) {
+          return _buildLoadingIndicator();
+        }
+
+        if (provider.transactions.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.inventory, size: 64, color: Colors.grey),
+                SizedBox(height: 16),
+                Text(
+                  'Tidak ada data produk pada periode ini',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // Aggregate product sales data
+        final productSales = <String, Map<String, dynamic>>{};
+        for (final transaction in provider.transactions) {
+          for (final item in transaction.items) {
+            final productName = item.product.name;
+            if (productSales.containsKey(productName)) {
+              productSales[productName]!['quantity'] += item.quantity;
+              productSales[productName]!['total'] +=
+                  item.quantity * item.product.price;
+            } else {
+              productSales[productName] = {
+                'product': item.product,
+                'quantity': item.quantity,
+                'total': item.quantity * item.product.price,
+              };
+            }
+          }
+        }
+
+        final sortedProducts = productSales.entries.toList()
+          ..sort((a, b) => b.value['quantity'].compareTo(a.value['quantity']));
+
+        return RefreshIndicator(
+          onRefresh: () async => _loadCashierData(),
+          color: primaryColor,
+          child: ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.symmetric(
+              horizontal: ResponsiveHelper.isMobile(context) ? 12 : 16,
+              vertical: 8,
+            ),
+            itemCount: sortedProducts.length,
+            itemBuilder: (context, index) {
+              final entry = sortedProducts[index];
+              final productName = entry.key;
+              final data = entry.value;
+              final product = data['product'];
+              final quantity = data['quantity'];
+              final total = data['total'];
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '${index + 1}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: primaryColor,
+                            fontSize: 14,
                           ),
                         ),
                       ),
                     ),
-                  ),
+                    const SizedBox(width: 12),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.defaultPrimaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Icon(
+                        Icons.fastfood,
+                        color: AppTheme.defaultPrimaryColor,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            productName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          Text(
+                            'Terjual $quantity unit • ${product.category}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.successColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '$quantity',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.successColor,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          NumberFormat.currency(
+                            locale: 'id_ID',
+                            symbol: 'Rp ',
+                            decimalDigits: 0,
+                          ).format(total),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey.shade700,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLoadingIndicator() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: const Center(
+        child: Column(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Memuat data laporan...'),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildPaymentMethodsChart() {
-    final paymentMethods = _selectedCashierReport!['payment_methods'] as List;
-
-    if (paymentMethods.isEmpty) {
-      return const Card(
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: Center(child: Text('Tidak ada data metode pembayaran')),
-        ),
-      );
+  Future<void> _handleMenuAction(
+    String action,
+    TransactionProvider provider,
+    SettingsProvider settingsProvider,
+  ) async {
+    if (_startDate == null || _endDate == null) {
+      _showSnackBar('Pilih periode laporan terlebih dahulu', isError: true);
+      return;
     }
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Metode Pembayaran',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            ...paymentMethods.map(
-              (method) => ListTile(
-                leading: Icon(_getPaymentMethodIcon(method['payment_method'])),
-                title: Text(_getPaymentMethodText(method['payment_method'])),
-                subtitle: Text('${method['count']} transaksi'),
-                trailing: Text(
-                  NumberFormat.currency(
-                    locale: 'id_ID',
-                    symbol: 'Rp ',
-                    decimalDigits: 0,
-                  ).format((method['total_amount'] ?? 0).toDouble()),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
-                  ),
+    setState(() => _isExporting = true);
+
+    try {
+      switch (action) {
+        case 'print_transactions':
+          await _printTransactionsReport(provider, settingsProvider);
+          break;
+        case 'print_products':
+          await _printProductsReport(provider, settingsProvider);
+          break;
+        case 'export_pdf_transactions':
+          await _exportTransactionsPDF(provider, settingsProvider);
+          break;
+        case 'export_pdf_products':
+          await _exportProductsPDF(provider, settingsProvider);
+          break;
+      }
+    } catch (e) {
+      _showSnackBar('Gagal memproses laporan: $e', isError: true);
+    } finally {
+      setState(() => _isExporting = false);
+    }
+  }
+
+  Future<void> _printTransactionsReport(
+    TransactionProvider provider,
+    SettingsProvider settingsProvider,
+  ) async {
+    final printerProvider = context.read<BluetoothPrinterProvider>();
+
+    if (!printerProvider.isConnected) {
+      _showSnackBar(
+        'Printer tidak terhubung. Hubungkan printer terlebih dahulu.',
+        isError: true,
+      );
+      return;
+    }
+
+    final success = await _reportsService.printTransactionsReport(
+      transactions: provider.transactions,
+      startDate: _startDate!,
+      endDate: _endDate!,
+      settings: settingsProvider.settings,
+    );
+
+    if (success) {
+      _showSnackBar('Laporan transaksi berhasil dicetak');
+    } else {
+      _showSnackBar('Gagal mencetak laporan transaksi', isError: true);
+    }
+  }
+
+  Future<void> _printProductsReport(
+    TransactionProvider provider,
+    SettingsProvider settingsProvider,
+  ) async {
+    final printerProvider = context.read<BluetoothPrinterProvider>();
+
+    if (!printerProvider.isConnected) {
+      _showSnackBar(
+        'Printer tidak terhubung. Hubungkan printer terlebih dahulu.',
+        isError: true,
+      );
+      return;
+    }
+
+    final success = await _reportsService.printProductsReport(
+      transactions: provider.transactions,
+      startDate: _startDate!,
+      endDate: _endDate!,
+      settings: settingsProvider.settings,
+    );
+
+    if (success) {
+      _showSnackBar('Laporan produk berhasil dicetak');
+    } else {
+      _showSnackBar('Gagal mencetak laporan produk', isError: true);
+    }
+  }
+
+  Future<void> _exportTransactionsPDF(
+    TransactionProvider provider,
+    SettingsProvider settingsProvider,
+  ) async {
+    final file = await _reportsService.generateTransactionsPDF(
+      transactions: provider.transactions,
+      startDate: _startDate!,
+      endDate: _endDate!,
+      settings: settingsProvider.settings,
+    );
+
+    await OpenFile.open(file.path);
+    _showSnackBar('Laporan PDF transaksi berhasil dibuat');
+  }
+
+  Future<void> _exportProductsPDF(
+    TransactionProvider provider,
+    SettingsProvider settingsProvider,
+  ) async {
+    final file = await _reportsService.generateProductsPDF(
+      transactions: provider.transactions,
+      startDate: _startDate!,
+      endDate: _endDate!,
+      settings: settingsProvider.settings,
+    );
+
+    await OpenFile.open(file.path);
+    _showSnackBar('Laporan PDF produk berhasil dibuat');
+  }
+
+  String _getDateRangeText() {
+    if (_startDate == null || _endDate == null) {
+      return 'Semua periode';
+    }
+
+    if (DateFormat('dd/MM/yyyy').format(_startDate!) ==
+        DateFormat(
+          'dd/MM/yyyy',
+        ).format(_endDate!.subtract(const Duration(days: 1)))) {
+      return DateFormat('dd/MM/yyyy').format(_startDate!);
+    }
+
+    return '${DateFormat('dd/MM/yyyy').format(_startDate!)} - ${DateFormat('dd/MM/yyyy').format(_endDate!.subtract(const Duration(days: 1)))}';
+  }
+
+  void _showCustomDateTimePicker() async {
+    DateTimeRange? initialRange;
+    if (_startDate != null && _endDate != null) {
+      final now = DateTime.now();
+      final endDate = _endDate!.subtract(const Duration(days: 1));
+
+      final validEndDate = endDate.isAfter(now)
+          ? DateTime(now.year, now.month, now.day)
+          : endDate;
+
+      final validStartDate = _startDate!.isAfter(validEndDate)
+          ? validEndDate
+          : _startDate!;
+
+      initialRange = DateTimeRange(start: validStartDate, end: validEndDate);
+    }
+
+    final DateTimeRange? picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      initialDateRange: initialRange,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+              primary: Color(
+                int.parse(
+                  context
+                      .read<SettingsProvider>()
+                      .settings
+                      .primaryColor
+                      .replaceAll('#', '0xFF'),
                 ),
               ),
             ),
-          ],
-        ),
-      ),
+          ),
+          child: child!,
+        );
+      },
     );
-  }
 
-  Color _getRankColor(int index) {
-    switch (index) {
-      case 0:
-        return Colors.amber; // Gold
-      case 1:
-        return Colors.grey; // Silver
-      case 2:
-        return Colors.brown; // Bronze
-      default:
-        return AppTheme.primaryColor;
+    if (picked != null) {
+      setState(() {
+        _selectedPeriod = 'Custom';
+        _startDate = DateTime(
+          picked.start.year,
+          picked.start.month,
+          picked.start.day,
+          0,
+          0,
+        );
+        _endDate = DateTime(
+          picked.end.year,
+          picked.end.month,
+          picked.end.day,
+          23,
+          59,
+        );
+      });
+      _loadCashierData();
     }
   }
 
@@ -776,38 +964,13 @@ class _CashierReportsScreenState extends State<CashierReportsScreen>
     }
   }
 
-  String _getDateRangeText() {
-    if (_startDate == null || _endDate == null) {
-      return 'Semua periode';
-    }
-
-    final formatter = DateFormat('dd/MM/yyyy');
-    final start = formatter.format(_startDate!);
-    final end = formatter.format(_endDate!.subtract(const Duration(days: 1)));
-
-    return '$start - $end';
-  }
-
-  void _showDateRangePicker() async {
-    final DateTimeRange? picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-      initialDateRange: _startDate != null && _endDate != null
-          ? DateTimeRange(
-              start: _startDate!,
-              end: _endDate!.subtract(const Duration(days: 1)),
-            )
-          : null,
+  void _showSnackBar(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : Colors.green,
+        behavior: SnackBarBehavior.floating,
+      ),
     );
-
-    if (picked != null) {
-      setState(() {
-        _startDate = picked.start;
-        _endDate = picked.end.add(const Duration(days: 1));
-      });
-
-      _loadData();
-    }
   }
 }

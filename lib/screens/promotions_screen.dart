@@ -1198,7 +1198,7 @@ class _PromotionDialogState extends State<PromotionDialog> {
 
                 // Type Selection
                 DropdownButtonFormField<PromotionType>(
-                  value: _selectedType,
+                  initialValue: _selectedType,
                   decoration: const InputDecoration(
                     labelText: 'Tipe Promosi',
                     prefixIcon: Icon(Icons.category),
@@ -1245,7 +1245,7 @@ class _PromotionDialogState extends State<PromotionDialog> {
 
                 // Discount Type Selection
                 DropdownButtonFormField<DiscountType>(
-                  value: _selectedDiscountType,
+                  initialValue: _selectedDiscountType,
                   decoration: const InputDecoration(
                     labelText: 'Tipe Diskon',
                     prefixIcon: Icon(Icons.discount),

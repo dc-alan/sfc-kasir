@@ -230,132 +230,132 @@ class DatabaseService {
       // Aneka Geprek
       {
         'id': 'prod-001',
-        'name': 'Nasi + Geprek Paha Bawah',
-        'description': 'Nasi dengan ayam geprek paha bawah',
-        'price': 13000.0,
-        'stock': 50,
-        'category': 'Aneka Geprek',
+        'name': 'Geprek 10K',
+        'description': 'Geprek 10K',
+        'price': 10000.0,
+        'stock': 100,
+        'category': 'Makanan',
         'barcode': '1001',
         'created_at': now,
         'updated_at': now,
       },
       {
         'id': 'prod-002',
-        'name': 'Nasi + Geprek Sayap',
-        'description': 'Nasi dengan ayam geprek sayap',
-        'price': 13000.0,
-        'stock': 50,
-        'category': 'Aneka Geprek',
+        'name': 'Geprek 8K',
+        'description': 'Geprek 10K',
+        'price': 8000.0,
+        'stock': 100,
+        'category': 'Makanan',
         'barcode': '1002',
         'created_at': now,
         'updated_at': now,
       },
       {
         'id': 'prod-003',
-        'name': 'Nasi + Geprek Paha Atas',
-        'description': 'Nasi dengan ayam geprek paha atas',
-        'price': 17000.0,
+        'name': 'Geprek 7K',
+        'description': 'Geprek 7K',
+        'price': 70000.0,
         'stock': 50,
-        'category': 'Aneka Geprek',
+        'category': 'Makanan',
         'barcode': '1003',
         'created_at': now,
         'updated_at': now,
       },
       {
         'id': 'prod-004',
-        'name': 'Nasi + Geprek Dada',
-        'description': 'Nasi dengan ayam geprek dada',
-        'price': 17000.0,
+        'name': 'Korea',
+        'description': 'Korea',
+        'price': 1.0,
         'stock': 50,
-        'category': 'Aneka Geprek',
+        'category': 'Makanan',
         'barcode': '1004',
         'created_at': now,
         'updated_at': now,
       },
       {
         'id': 'prod-005',
-        'name': 'Nasi + Geprek Paha Bawah Mozzarella',
-        'description': 'Nasi dengan ayam geprek paha bawah dan keju mozzarella',
-        'price': 20000.0,
+        'name': 'Nasi',
+        'description': 'Nasi',
+        'price': 1.0,
         'stock': 50,
-        'category': 'Aneka Geprek',
+        'category': 'Makanan',
         'barcode': '1005',
         'created_at': now,
         'updated_at': now,
       },
       {
         'id': 'prod-006',
-        'name': 'Nasi + Geprek Sayap Mozzarella',
-        'description': 'Nasi dengan ayam geprek sayap dan keju mozzarella',
-        'price': 20000.0,
+        'name': 'Sambel',
+        'description': 'Sambel',
+        'price': 1.0,
         'stock': 50,
-        'category': 'Aneka Geprek',
+        'category': 'Tambahan',
         'barcode': '1006',
         'created_at': now,
         'updated_at': now,
       },
       {
         'id': 'prod-007',
-        'name': 'Nasi + Geprek Paha Atas Mozzarella',
-        'description': 'Nasi dengan ayam geprek paha atas dan keju mozzarella',
-        'price': 24000.0,
+        'name': 'Teh',
+        'description': 'Teh',
+        'price': 1.0,
         'stock': 50,
-        'category': 'Aneka Geprek',
+        'category': 'Minuman',
         'barcode': '1007',
         'created_at': now,
         'updated_at': now,
       },
       {
         'id': 'prod-008',
-        'name': 'Nasi + Geprek Dada Mozzarella',
-        'description': 'Nasi dengan ayam geprek dada dan keju mozzarella',
-        'price': 24000.0,
+        'name': 'Jeruk',
+        'description': 'Jeruk',
+        'price': 1.0,
         'stock': 50,
-        'category': 'Aneka Geprek',
+        'category': 'Minuman',
         'barcode': '1008',
         'created_at': now,
         'updated_at': now,
       },
       {
         'id': 'prod-009',
-        'name': 'Indomie Geprek Paha Bawah',
-        'description': 'Indomie dengan ayam geprek paha bawah',
-        'price': 15000.0,
+        'name': 'Aqua',
+        'description': 'Aqua',
+        'price': 1.0,
         'stock': 50,
-        'category': 'Aneka Geprek',
+        'category': 'Minuman',
         'barcode': '1009',
         'created_at': now,
         'updated_at': now,
       },
       {
         'id': 'prod-010',
-        'name': 'Indomie Geprek Sayap',
-        'description': 'Indomie dengan ayam geprek sayap',
+        'name': 'Krupuk',
+        'description': 'Krupuk',
         'price': 15000.0,
         'stock': 50,
-        'category': 'Aneka Geprek',
+        'category': 'Tambahan',
         'barcode': '1010',
         'created_at': now,
         'updated_at': now,
       },
       {
         'id': 'prod-011',
-        'name': 'Indomie Geprek Paha Atas',
-        'description': 'Indomie dengan ayam geprek paha atas',
-        'price': 19000.0,
+        'name': 'Jamur',
+        'description': 'Jamur',
+        'price': 1.0,
         'stock': 50,
-        'category': 'Aneka Geprek',
+        'category': 'Makanan',
         'barcode': '1011',
         'created_at': now,
         'updated_at': now,
       },
       {
         'id': 'prod-012',
-        'name': 'Indomie Geprek Dada',
-        'description': 'Indomie dengan ayam geprek dada',
-        'price': 19000.0,
+        'name': 'Kopi Hitam',
+        'description': 'Kopi Hitam',
+        'price': 1.0,
         'stock': 50,
-        'category': 'Aneka Geprek',
+        'category': 'Minuman',
         'barcode': '1012',
         'created_at': now,
         'updated_at': now,
@@ -364,44 +364,44 @@ class DatabaseService {
       // Shella Fried Chicken (SFC)
       {
         'id': 'prod-013',
-        'name': 'Nasi + SFC Paha Bawah',
-        'description': 'Nasi dengan SFC paha bawah',
-        'price': 11000.0,
+        'name': 'White Kopi',
+        'description': 'White Kopi',
+        'price': 1.0,
         'stock': 50,
-        'category': 'Shella Fried Chicken',
-        'barcode': '2001',
+        'category': 'Minuman',
+        'barcode': '1013',
         'created_at': now,
         'updated_at': now,
       },
       {
         'id': 'prod-014',
-        'name': 'Nasi + SFC Sayap',
-        'description': 'Nasi dengan SFC sayap',
-        'price': 11000.0,
+        'name': 'Snack',
+        'description': 'Snack',
+        'price': 1.0,
         'stock': 50,
-        'category': 'Shella Fried Chicken',
-        'barcode': '2002',
+        'category': 'Snack',
+        'barcode': '1014',
         'created_at': now,
         'updated_at': now,
       },
       {
         'id': 'prod-015',
-        'name': 'Nasi + SFC Paha Atas',
-        'description': 'Nasi dengan SFC paha atas',
-        'price': 15000.0,
+        'name': 'Pentol',
+        'description': 'Pentol',
+        'price': 1.0,
         'stock': 50,
-        'category': 'Shella Fried Chicken',
-        'barcode': '2003',
+        'category': 'Tambahan',
+        'barcode': '1015',
         'created_at': now,
         'updated_at': now,
       },
       {
         'id': 'prod-016',
-        'name': 'Nasi + SFC Dada',
-        'description': 'Nasi dengan SFC dada',
-        'price': 15000.0,
+        'name': 'Usus',
+        'description': 'Usus',
+        'price': 1.0,
         'stock': 50,
-        'category': 'Shella Fried Chicken',
+        'category': 'Tambahan',
         'barcode': '2004',
         'created_at': now,
         'updated_at': now,
@@ -410,113 +410,12 @@ class DatabaseService {
       // Lauk Saja
       {
         'id': 'prod-017',
-        'name': 'Geprek Paha Bawah/Sayap',
-        'description': 'Ayam geprek paha bawah atau sayap saja',
-        'price': 9000.0,
+        'name': 'Kotak Nasi',
+        'description': 'Kotak Nasi',
+        'price': 1.0,
         'stock': 50,
-        'category': 'Lauk Saja',
+        'category': 'Tambahan',
         'barcode': '3001',
-        'created_at': now,
-        'updated_at': now,
-      },
-      {
-        'id': 'prod-018',
-        'name': 'Geprek Paha Atas/Dada',
-        'description': 'Ayam geprek paha atas atau dada saja',
-        'price': 13000.0,
-        'stock': 50,
-        'category': 'Lauk Saja',
-        'barcode': '3002',
-        'created_at': now,
-        'updated_at': now,
-      },
-      {
-        'id': 'prod-019',
-        'name': 'SFC Paha Bawah/Sayap',
-        'description': 'SFC paha bawah atau sayap saja',
-        'price': 7000.0,
-        'stock': 50,
-        'category': 'Lauk Saja',
-        'barcode': '3003',
-        'created_at': now,
-        'updated_at': now,
-      },
-      {
-        'id': 'prod-020',
-        'name': 'SFC Paha Atas/Dada',
-        'description': 'SFC paha atas atau dada saja',
-        'price': 11000.0,
-        'stock': 50,
-        'category': 'Lauk Saja',
-        'barcode': '3004',
-        'created_at': now,
-        'updated_at': now,
-      },
-      {
-        'id': 'prod-021',
-        'name': 'Nasi Putih',
-        'description': 'Nasi putih',
-        'price': 4000.0,
-        'stock': 100,
-        'category': 'Lauk Saja',
-        'barcode': '3005',
-        'created_at': now,
-        'updated_at': now,
-      },
-      {
-        'id': 'prod-022',
-        'name': 'Sambal Bawang',
-        'description': 'Sambal bawang',
-        'price': 3000.0,
-        'stock': 100,
-        'category': 'Lauk Saja',
-        'barcode': '3006',
-        'created_at': now,
-        'updated_at': now,
-      },
-      {
-        'id': 'prod-023',
-        'name': 'Keju Mozzarella',
-        'description': 'Keju mozzarella',
-        'price': 7000.0,
-        'stock': 100,
-        'category': 'Lauk Saja',
-        'barcode': '3007',
-        'created_at': now,
-        'updated_at': now,
-      },
-
-      // Minuman
-      {
-        'id': 'prod-024',
-        'name': 'Es Teh',
-        'description': 'Es teh segar',
-        'price': 4000.0,
-        'stock': 100,
-        'category': 'Minuman',
-        'barcode': '4001',
-        'created_at': now,
-        'updated_at': now,
-      },
-      {
-        'id': 'prod-025',
-        'name': 'Es Jeruk',
-        'description': 'Es jeruk segar',
-        'price': 4000.0,
-        'stock': 100,
-        'category': 'Minuman',
-        'barcode': '4002',
-        'created_at': now,
-        'updated_at': now,
-      },
-      {
-        'id': 'prod-026',
-        'name': 'Air Mineral',
-        'description': 'Air mineral',
-        'price': 4000.0,
-        'stock': 100,
-        'category': 'Minuman',
-        'barcode': '4003',
         'created_at': now,
         'updated_at': now,
       },
@@ -755,10 +654,22 @@ class DatabaseService {
     await db.insert('users', {
       'id': 'admin-001',
       'username': 'admin',
-      'password': '2025GAJI',
+      'password': 'admin132',
       'name': 'Administrator',
       'email': 'admin@kasir.com',
       'role': 'admin',
+      'is_active': 1,
+      'created_at': DateTime.now().toIso8601String(),
+      'updated_at': DateTime.now().toIso8601String(),
+    });
+
+    await db.insert('users', {
+      'id': 'kasir-001',
+      'username': 'kasir',
+      'password': 'kasir132',
+      'name': 'kasir',
+      'email': 'admin@kasir.com',
+      'role': 'kasir',
       'is_active': 1,
       'created_at': DateTime.now().toIso8601String(),
       'updated_at': DateTime.now().toIso8601String(),
@@ -1147,6 +1058,164 @@ class DatabaseService {
         );
       }
     });
+  }
+
+  Future<void> updateTransaction(model.Transaction transaction) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      // Get original transaction to restore stock
+      final originalTransactionMaps = await txn.rawQuery(
+        '''
+        SELECT ti.*, p.* FROM transaction_items ti
+        JOIN products p ON ti.product_id = p.id
+        WHERE ti.transaction_id = ?
+        ''',
+        [transaction.id],
+      );
+
+      // Restore stock from original transaction
+      for (var itemMap in originalTransactionMaps) {
+        await txn.rawUpdate(
+          'UPDATE products SET stock = stock + ? WHERE id = ?',
+          [itemMap['quantity'], itemMap['product_id']],
+        );
+      }
+
+      // Delete old transaction items
+      await txn.delete(
+        'transaction_items',
+        where: 'transaction_id = ?',
+        whereArgs: [transaction.id],
+      );
+
+      // Update transaction
+      await txn.update(
+        'transactions',
+        transaction.toMap(),
+        where: 'id = ?',
+        whereArgs: [transaction.id],
+      );
+
+      // Insert new transaction items
+      for (var item in transaction.items) {
+        await txn.insert('transaction_items', {
+          'id': item.id,
+          'transaction_id': transaction.id,
+          'product_id': item.product.id,
+          'quantity': item.quantity,
+          'unit_price': item.unitPrice,
+          'discount': item.discount,
+        });
+
+        // Update product stock with new quantities
+        await txn.rawUpdate(
+          'UPDATE products SET stock = stock - ? WHERE id = ?',
+          [item.quantity, item.product.id],
+        );
+      }
+    });
+  }
+
+  Future<void> deleteTransaction(String transactionId) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      // Get transaction items to restore stock
+      final itemMaps = await txn.rawQuery(
+        '''
+        SELECT ti.*, p.* FROM transaction_items ti
+        JOIN products p ON ti.product_id = p.id
+        WHERE ti.transaction_id = ?
+        ''',
+        [transactionId],
+      );
+
+      // Restore stock
+      for (var itemMap in itemMaps) {
+        await txn.rawUpdate(
+          'UPDATE products SET stock = stock + ? WHERE id = ?',
+          [itemMap['quantity'], itemMap['product_id']],
+        );
+      }
+
+      // Delete transaction items
+      await txn.delete(
+        'transaction_items',
+        where: 'transaction_id = ?',
+        whereArgs: [transactionId],
+      );
+
+      // Delete transaction
+      await txn.delete(
+        'transactions',
+        where: 'id = ?',
+        whereArgs: [transactionId],
+      );
+    });
+  }
+
+  Future<model.Transaction?> getTransactionById(String transactionId) async {
+    final db = await database;
+
+    // Get transaction
+    final List<Map<String, dynamic>> transactionMaps = await db.query(
+      'transactions',
+      where: 'id = ?',
+      whereArgs: [transactionId],
+    );
+
+    if (transactionMaps.isEmpty) return null;
+
+    final transactionMap = transactionMaps.first;
+
+    // Get transaction items
+    final List<Map<String, dynamic>> itemMaps = await db.rawQuery(
+      '''
+      SELECT ti.*, p.* FROM transaction_items ti
+      JOIN products p ON ti.product_id = p.id
+      WHERE ti.transaction_id = ?
+      ''',
+      [transactionId],
+    );
+
+    List<CartItem> items = [];
+    for (var itemMap in itemMaps) {
+      final product = Product.fromMap({
+        'id': itemMap['product_id'],
+        'name': itemMap['name'],
+        'description': itemMap['description'],
+        'price': itemMap['price'],
+        'stock': itemMap['stock'],
+        'category': itemMap['category'],
+        'barcode': itemMap['barcode'],
+        'created_at': itemMap['created_at'],
+        'updated_at': itemMap['updated_at'],
+      });
+
+      items.add(
+        CartItem(
+          id: itemMap['id'],
+          product: product,
+          quantity: itemMap['quantity'],
+          unitPrice: itemMap['unit_price'].toDouble(),
+          discount: itemMap['discount'].toDouble(),
+        ),
+      );
+    }
+
+    // Get customer if exists
+    Customer? customer;
+    if (transactionMap['customer_id'] != null) {
+      final customerMaps = await db.query(
+        'customers',
+        where: 'id = ?',
+        whereArgs: [transactionMap['customer_id']],
+      );
+      if (customerMaps.isNotEmpty) {
+        customer = Customer.fromMap(customerMaps.first);
+      }
+    }
+
+    return model.Transaction.fromMap(transactionMap, items, customer);
   }
 
   Future<List<model.Transaction>> getTransactions({

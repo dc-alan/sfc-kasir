@@ -21,7 +21,9 @@ import '../utils/app_theme.dart';
 import '../utils/responsive_helper.dart';
 
 class POSScreen extends StatefulWidget {
-  const POSScreen({super.key});
+  final model.Transaction? editTransaction;
+
+  const POSScreen({super.key, this.editTransaction});
 
   @override
   State<POSScreen> createState() => _POSScreenState();
@@ -30,13 +32,23 @@ class POSScreen extends StatefulWidget {
 class _POSScreenState extends State<POSScreen> {
   final TextEditingController _searchController = TextEditingController();
   final bool _isCartExpanded = false;
+  bool _isEditMode = false;
 
   @override
   void initState() {
     super.initState();
+    _isEditMode = widget.editTransaction != null;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadProductsWithPromotions();
+      if (_isEditMode && widget.editTransaction != null) {
+        _populateCartForEdit();
+      }
     });
+  }
+
+  void _populateCartForEdit() {
+    final cartProvider = context.read<CartProvider>();
+    cartProvider.populateFromTransaction(widget.editTransaction!);
   }
 
   @override
@@ -80,6 +92,17 @@ class _POSScreenState extends State<POSScreen> {
           builder: (context, isMobile, isTablet, isDesktop) {
             return Scaffold(
               backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              appBar: _isEditMode
+                  ? AppBar(
+                      title: const Text('Edit Transaksi'),
+                      backgroundColor: primaryColor,
+                      foregroundColor: Colors.white,
+                      leading: IconButton(
+                        icon: const Icon(Icons.arrow_back),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    )
+                  : null,
               body: _buildBody(isMobile, isTablet, isDesktop),
               floatingActionButton: isMobile
                   ? _buildFloatingCheckoutButton()
@@ -476,9 +499,14 @@ class _POSScreenState extends State<POSScreen> {
                 onPressed: _showCheckoutDialog,
                 backgroundColor: AppTheme.successColor,
                 elevation: 8,
-                icon: const Icon(Icons.payment, color: Colors.white),
+                icon: Icon(
+                  _isEditMode ? Icons.save : Icons.payment,
+                  color: Colors.white,
+                ),
                 label: Text(
-                  'Bayar (${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(cartProvider.total)})',
+                  _isEditMode
+                      ? 'Update (${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(cartProvider.total)})'
+                      : 'Bayar (${NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(cartProvider.total)})',
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -528,7 +556,7 @@ class _POSScreenState extends State<POSScreen> {
     if (cartProvider.isEmpty) return;
 
     final transaction = model.Transaction(
-      id: const Uuid().v4(),
+      id: _isEditMode ? widget.editTransaction!.id : const Uuid().v4(),
       items: cartProvider.items,
       subtotal: cartProvider.promotionAdjustedSubtotal,
       tax: cartProvider.taxAmount,
@@ -539,27 +567,35 @@ class _POSScreenState extends State<POSScreen> {
       change: amountPaid - cartProvider.promotionAdjustedTotal,
       customer: customer,
       cashierId: authProvider.currentUser!.id,
-      createdAt: DateTime.now(),
+      createdAt: _isEditMode
+          ? widget.editTransaction!.createdAt
+          : DateTime.now(),
       notes: notes,
-      discountBreakdown:
-          cartProvider.discountBreakdown, // Add discount breakdown
+      discountBreakdown: cartProvider.discountBreakdown,
     );
 
     try {
-      await transactionProvider.addTransaction(transaction);
+      if (_isEditMode) {
+        await transactionProvider.updateTransaction(transaction);
+        if (mounted) {
+          _showSuccessSnackBar(context, 'Transaksi berhasil diupdate');
+          Navigator.of(context).pop(); // Go back to reports screen
+        }
+      } else {
+        await transactionProvider.addTransaction(transaction);
+        cartProvider.clear();
 
-      cartProvider.clear();
+        if (mounted) {
+          await _loadProductsWithPromotions();
+        }
 
-      if (mounted) {
-        await _loadProductsWithPromotions();
-      }
+        if (mounted) {
+          _showSuccessSnackBar(context, 'Transaksi berhasil disimpan');
+        }
 
-      if (mounted) {
-        _showSuccessSnackBar(context, 'Transaksi berhasil disimpan');
-      }
-
-      if (mounted) {
-        _showReceiptDialog(transaction);
+        if (mounted) {
+          _showReceiptDialog(transaction);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -581,36 +617,6 @@ class _POSScreenState extends State<POSScreen> {
             _showSuccessSnackBar(context, 'Struk berhasil dicetak');
           },
         ),
-      ),
-    );
-  }
-
-  void _showFeatureDialog(String title, String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.infoColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(Icons.info, color: AppTheme.infoColor, size: 20),
-            ),
-            const SizedBox(width: 12),
-            Text(title),
-          ],
-        ),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
       ),
     );
   }

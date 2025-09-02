@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 import '../models/cart_item.dart';
 import '../models/product.dart';
 import '../models/customer.dart';
+import '../models/transaction.dart' as model;
 import '../services/promotion_service.dart';
 import 'promotion_provider.dart';
 
@@ -257,6 +258,25 @@ class CartProvider with ChangeNotifier {
     _notes = null;
     _appliedCouponCode = null;
     _promotionResult = null;
+    notifyListeners();
+  }
+
+  void populateFromTransaction(model.Transaction transaction) {
+    clear();
+
+    // Add all items from the transaction
+    for (final item in transaction.items) {
+      _items.add(item);
+    }
+
+    // Set transaction details
+    _selectedCustomer = transaction.customer;
+    _discount = transaction.discount;
+    _tax = transaction.subtotal > 0
+        ? (transaction.tax / transaction.subtotal) * 100
+        : 0.0; // Convert back to percentage
+    _notes = transaction.notes;
+
     notifyListeners();
   }
 

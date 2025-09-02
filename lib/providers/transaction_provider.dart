@@ -47,6 +47,35 @@ class TransactionProvider with ChangeNotifier {
     }
   }
 
+  Future<void> updateTransaction(model.Transaction transaction) async {
+    try {
+      await _databaseService.updateTransaction(transaction);
+      await loadTransactions(startDate: _startDate, endDate: _endDate);
+    } catch (e) {
+      debugPrint('Error updating transaction: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteTransaction(String transactionId) async {
+    try {
+      await _databaseService.deleteTransaction(transactionId);
+      await loadTransactions(startDate: _startDate, endDate: _endDate);
+    } catch (e) {
+      debugPrint('Error deleting transaction: $e');
+      rethrow;
+    }
+  }
+
+  Future<model.Transaction?> getTransactionById(String transactionId) async {
+    try {
+      return await _databaseService.getTransactionById(transactionId);
+    } catch (e) {
+      debugPrint('Error getting transaction by id: $e');
+      return null;
+    }
+  }
+
   double getTotalRevenue() {
     return _transactions.fold(
       0.0,

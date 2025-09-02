@@ -916,6 +916,31 @@ class _SettingsScreenState extends State<SettingsScreen>
           ),
           const SizedBox(height: 16),
 
+          _buildSectionHeader('Printer Bluetooth'),
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  title: const Text('Pengaturan Printer Bluetooth'),
+                  subtitle: const Text(
+                    'Kelola koneksi printer thermal Bluetooth',
+                  ),
+                  leading: const Icon(Icons.bluetooth),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const BluetoothPrinterScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
           _buildSectionHeader('Notifikasi'),
           Card(
             child: Column(

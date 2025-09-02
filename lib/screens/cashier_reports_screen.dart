@@ -9,6 +9,7 @@ import '../providers/auth_provider.dart';
 import '../services/reports_service.dart';
 import '../utils/app_theme.dart';
 import '../utils/responsive_helper.dart';
+import 'pos_screen.dart';
 
 class CashierReportsScreen extends StatefulWidget {
   const CashierReportsScreen({super.key});
@@ -474,6 +475,46 @@ class _CashierReportsScreenState extends State<CashierReportsScreen>
                             color: AppTheme.successColor,
                             fontSize: 16,
                           ),
+                        ),
+                        const SizedBox(width: 8),
+                        PopupMenuButton<String>(
+                          icon: Icon(
+                            Icons.more_vert,
+                            color: Colors.grey.shade600,
+                            size: 20,
+                          ),
+                          onSelected: (value) =>
+                              _handleTransactionAction(value, transaction),
+                          itemBuilder: (context) => [
+                            const PopupMenuItem(
+                              value: 'edit',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.edit,
+                                    color: Colors.blue,
+                                    size: 18,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text('Edit'),
+                                ],
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.delete,
+                                    color: Colors.red,
+                                    size: 18,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text('Hapus'),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -961,6 +1002,67 @@ class _CashierReportsScreenState extends State<CashierReportsScreen>
         return Icons.payment;
       default:
         return Icons.payment;
+    }
+  }
+
+  void _handleTransactionAction(String action, dynamic transaction) async {
+    switch (action) {
+      case 'edit':
+        // Navigate to POS screen with edit transaction
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => POSScreen(editTransaction: transaction),
+          ),
+        ).then((_) {
+          // Refresh data when returning from edit
+          _loadCashierData();
+        });
+        break;
+      case 'delete':
+        _showDeleteConfirmationDialog(transaction);
+        break;
+    }
+  }
+
+  void _showDeleteConfirmationDialog(dynamic transaction) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Konfirmasi Hapus'),
+        content: Text(
+          'Apakah Anda yakin ingin menghapus transaksi #${transaction.id}?\n\nTindakan ini tidak dapat dibatalkan.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await _deleteTransaction(transaction);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteTransaction(dynamic transaction) async {
+    try {
+      final transactionProvider = context.read<TransactionProvider>();
+      await transactionProvider.deleteTransaction(transaction.id);
+
+      _showSnackBar('Transaksi berhasil dihapus');
+      _loadCashierData(); // Refresh the data
+    } catch (e) {
+      _showSnackBar('Gagal menghapus transaksi: $e', isError: true);
     }
   }
 

@@ -721,7 +721,7 @@ class ReportsService {
     }
 
     // Footer
-    bytes.addAll([0x0A, 0x0A]);
+    // bytes.addAll([0x0A, 0x0A]);
     bytes.addAll([gs, 0x56, 0x42, 0x00]); // Partial cut
 
     return Uint8List.fromList(bytes);

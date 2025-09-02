@@ -213,31 +213,31 @@ class _LoginScreenState extends State<LoginScreen> {
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.blue.shade200),
       ),
-      child: Column(
-        children: [
-          const Text(
-            'Demo Login:',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF2196F3),
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Username: admin',
-            style: TextStyle(fontFamily: 'monospace', fontSize: 14),
-          ),
-          const Text(
-            'Password: 2025GAJI',
-            style: TextStyle(fontFamily: 'monospace', fontSize: 14),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Gunakan kredensial di atas untuk masuk',
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-          ),
-        ],
-      ),
+      // child: Column(
+      //   children: [
+      //     const Text(
+      //       'Demo Login:',
+      //       style: TextStyle(
+      //         fontWeight: FontWeight.bold,
+      //         color: Color(0xFF2196F3),
+      //       ),
+      //     ),
+      //     const SizedBox(height: 8),
+      //     const Text(
+      //       'Username: admin',
+      //       style: TextStyle(fontFamily: 'monospace', fontSize: 14),
+      //     ),
+      //     const Text(
+      //       'Password: 2025GAJI',
+      //       style: TextStyle(fontFamily: 'monospace', fontSize: 14),
+      //     ),
+      //     const SizedBox(height: 4),
+      //     Text(
+      //       'Gunakan kredensial di atas untuk masuk',
+      //       style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+      //     ),
+      //   ],
+      // ),
     );
   }
 }

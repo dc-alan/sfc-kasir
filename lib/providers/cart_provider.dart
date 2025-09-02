@@ -16,7 +16,7 @@ class CartProvider with ChangeNotifier {
   String? _appliedCouponCode;
   CartPromotionResult? _promotionResult;
 
-  List<CartItem> get items => List.unmodifiable(_items);
+  List<CartItem> get items => List.unmodifiable(_items.reversed);
   Customer? get selectedCustomer => _selectedCustomer;
   double get discount => _discount;
   double get tax => _tax;

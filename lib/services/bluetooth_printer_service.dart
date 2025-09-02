@@ -632,21 +632,29 @@ class BluetoothPrinterService {
     bytes.addAll([esc, 0x61, 0x01]); // Center alignment
 
     // Receipt header with proper encoding
-    bytes.addAll([esc, 0x21, 0x30]); // Double height and width
-    bytes.addAll(utf8.encode(settings.receiptHeader));
-    bytes.addAll([0x0A, 0x0A]); // Line feeds
+    if (settings.receiptHeader.isNotEmpty) {
+      bytes.addAll([esc, 0x21, 0x30]); // Double height and width
+      bytes.addAll(utf8.encode(settings.receiptHeader));
+      bytes.addAll([0x0A, 0x0A]); // Line feeds
+    }
 
     // Business name with proper encoding
-    bytes.addAll([esc, 0x21, 0x20]); // Double height
-    bytes.addAll(utf8.encode(settings.businessName.toUpperCase()));
-    bytes.addAll([0x0A]); // Line feed
+    
+    if (settings.businessName.isNotEmpty) {
+      bytes.addAll([esc, 0x21, 0x20]); // Double height
+      bytes.addAll(utf8.encode(settings.businessName.toUpperCase()));
+      bytes.addAll([0x0A]); // Line feed
+    }
 
     // Reset font size
     bytes.addAll([esc, 0x21, 0x00]); // Normal size
 
     // Business address with proper encoding
-    bytes.addAll(utf8.encode(settings.businessAddress));
-    bytes.addAll([0x0A]);
+    
+    if (settings.businessAddress.isNotEmpty) {
+      bytes.addAll(utf8.encode(settings.businessAddress));
+      bytes.addAll([0x0A]);
+    }
 
     // Business phone
     if (settings.businessPhone.isNotEmpty) {
@@ -694,7 +702,7 @@ class BluetoothPrinterService {
         'Metode Bayar: ${_getPaymentMethodText(transaction.paymentMethod)}',
       ),
     );
-    bytes.addAll([0x0A, 0x0A]);
+    // bytes.addAll([0x0A, 0x0A]);
 
     // Items header
     bytes.addAll(utf8.encode('DETAIL PEMBELIAN'));
@@ -706,7 +714,7 @@ class BluetoothPrinterService {
     for (final item in transaction.items) {
       // Product name with proper encoding
       bytes.addAll(utf8.encode(item.product.name));
-      bytes.addAll([0x0A]);
+      // bytes.addAll([0x0A]);
 
       final itemLine = '${item.quantity} x ${_formatCurrency(item.unitPrice)}';
       final totalLine = _formatCurrency(item.totalPrice);

@@ -3,8 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import '../providers/bluetooth_printer_provider.dart';
 import '../providers/settings_provider.dart';
-import '../services/bluetooth_printer_service.dart';
-import '../utils/app_theme.dart';
 
 class BluetoothPrinterScreen extends StatefulWidget {
   const BluetoothPrinterScreen({super.key});

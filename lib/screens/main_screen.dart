@@ -276,7 +276,7 @@ class _MainScreenState extends State<MainScreen> {
           label: Text(item.label ?? ''),
         );
       }).toList(),
-      leading: _buildNavigationRailHeader(),
+      // leading: _buildNavigationRailHeader(),
       trailing: _buildNavigationRailFooter(),
     );
   }

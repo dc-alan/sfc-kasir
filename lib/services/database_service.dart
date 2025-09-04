@@ -1221,6 +1221,7 @@ class DatabaseService {
   Future<List<model.Transaction>> getTransactions({
     DateTime? startDate,
     DateTime? endDate,
+    String? cashierId,
   }) async {
     final db = await database;
     String whereClause = '';
@@ -1228,7 +1229,19 @@ class DatabaseService {
 
     if (startDate != null && endDate != null) {
       whereClause = 'WHERE created_at BETWEEN ? AND ?';
-      whereArgs = [startDate.toIso8601String(), endDate.toIso8601String()];
+      whereArgs.addAll([
+        startDate.toIso8601String(),
+        endDate.toIso8601String(),
+      ]);
+    }
+
+    if (cashierId != null && cashierId.isNotEmpty) {
+      if (whereClause.isNotEmpty) {
+        whereClause += ' AND cashier_id = ?';
+      } else {
+        whereClause = 'WHERE cashier_id = ?';
+      }
+      whereArgs.add(cashierId);
     }
 
     final List<Map<String, dynamic>> transactionMaps = await db.rawQuery(

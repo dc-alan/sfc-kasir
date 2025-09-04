@@ -264,9 +264,18 @@ class CartProvider with ChangeNotifier {
   void populateFromTransaction(model.Transaction transaction) {
     clear();
 
-    // Add all items from the transaction
+    // Add all items from the transaction with new IDs to avoid constraint violations
     for (final item in transaction.items) {
-      _items.add(item);
+      _items.add(
+        CartItem(
+          id: const Uuid()
+              .v4(), // Generate new ID to avoid primary key conflicts
+          product: item.product,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          discount: item.discount,
+        ),
+      );
     }
 
     // Set transaction details

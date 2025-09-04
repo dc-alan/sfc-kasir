@@ -9,6 +9,7 @@ import '../providers/auth_provider.dart';
 import '../services/reports_service.dart';
 import '../utils/app_theme.dart';
 import '../utils/responsive_helper.dart';
+import '../widgets/receipt_preview.dart';
 import 'pos_screen.dart';
 
 class CashierReportsScreen extends StatefulWidget {
@@ -83,9 +84,10 @@ class _CashierReportsScreenState extends State<CashierReportsScreen>
 
     try {
       // Load transactions for this cashier (filtered by cashier ID)
-      context.read<TransactionProvider>().loadTransactions(
+      await context.read<TransactionProvider>().loadTransactions(
         startDate: _startDate,
         endDate: _endDate,
+        cashierId: authProvider.currentUser!.id, // Filter by current user's ID
       );
 
       setState(() {
@@ -93,6 +95,7 @@ class _CashierReportsScreenState extends State<CashierReportsScreen>
           'cashier_info': {
             'name': authProvider.currentUser!.name,
             'username': authProvider.currentUser!.username,
+            'id': authProvider.currentUser!.id,
           },
           'period': {
             'start_date':
@@ -263,6 +266,59 @@ class _CashierReportsScreenState extends State<CashierReportsScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Cashier info section
+          Consumer<AuthProvider>(
+            builder: (context, authProvider, child) {
+              if (authProvider.currentUser != null) {
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: primaryColor.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.person, color: primaryColor, size: 16),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Laporan untuk: ${authProvider.currentUser!.name}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: primaryColor,
+                        ),
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: primaryColor,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          authProvider.currentUser!.roleDisplayName,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
           Row(
             children: [
               Icon(Icons.date_range, color: primaryColor, size: 18),
@@ -497,6 +553,20 @@ class _CashierReportsScreenState extends State<CashierReportsScreen>
                                   ),
                                   SizedBox(width: 8),
                                   Text('Edit'),
+                                ],
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'reprint',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.print,
+                                    color: Colors.green,
+                                    size: 18,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text('Cetak Ulang Nota'),
                                 ],
                               ),
                             ),
@@ -1019,6 +1089,9 @@ class _CashierReportsScreenState extends State<CashierReportsScreen>
           _loadCashierData();
         });
         break;
+      case 'reprint':
+        _showReprintReceiptDialog(transaction);
+        break;
       case 'delete':
         _showDeleteConfirmationDialog(transaction);
         break;
@@ -1064,6 +1137,23 @@ class _CashierReportsScreenState extends State<CashierReportsScreen>
     } catch (e) {
       _showSnackBar('Gagal menghapus transaksi: $e', isError: true);
     }
+  }
+
+  void _showReprintReceiptDialog(dynamic transaction) {
+    showDialog(
+      context: context,
+      builder: (context) => Consumer<SettingsProvider>(
+        builder: (context, settingsProvider, child) => ReceiptPreview(
+          transaction: transaction,
+          cashierName:
+              context.read<AuthProvider>().currentUser?.name ?? 'Kasir',
+          settings: settingsProvider.settings,
+          onPrint: () {
+            _showSnackBar('Struk berhasil dicetak ulang');
+          },
+        ),
+      ),
+    );
   }
 
   void _showSnackBar(String message, {bool isError = false}) {

@@ -633,15 +633,14 @@ class BluetoothPrinterService {
 
     // Receipt header with proper encoding
     if (settings.receiptHeader.isNotEmpty) {
-      bytes.addAll([esc, 0x21, 0x30]); // Double height and width
+      bytes.addAll([esc, 0x21, 0x10]); // Double height and width
       bytes.addAll(utf8.encode(settings.receiptHeader));
-      bytes.addAll([0x0A, 0x0A]); // Line feeds
     }
 
     // Business name with proper encoding
-    
+
     if (settings.businessName.isNotEmpty) {
-      bytes.addAll([esc, 0x21, 0x20]); // Double height
+      bytes.addAll([esc, 0x21, 0x10]); // Double height
       bytes.addAll(utf8.encode(settings.businessName.toUpperCase()));
       bytes.addAll([0x0A]); // Line feed
     }
@@ -650,11 +649,11 @@ class BluetoothPrinterService {
     bytes.addAll([esc, 0x21, 0x00]); // Normal size
 
     // Business address with proper encoding
-    
-    if (settings.businessAddress.isNotEmpty) {
-      bytes.addAll(utf8.encode(settings.businessAddress));
-      bytes.addAll([0x0A]);
-    }
+
+    // if (settings.businessAddress.isNotEmpty) {
+    //   bytes.addAll(utf8.encode(settings.businessAddress));
+    //   bytes.addAll([0x0A]);
+    // }
 
     // Business phone
     if (settings.businessPhone.isNotEmpty) {
@@ -663,25 +662,25 @@ class BluetoothPrinterService {
     }
 
     // Business email
-    if (settings.businessEmail.isNotEmpty) {
-      bytes.addAll(utf8.encode('Email: ${settings.businessEmail}'));
-      bytes.addAll([0x0A]);
-    }
+    // if (settings.businessEmail.isNotEmpty) {
+    //   bytes.addAll(utf8.encode('Email: ${settings.businessEmail}'));
+    //   bytes.addAll([0x0A]);
+    // }
 
     // Separator line
-    bytes.addAll([0x0A]);
-    bytes.addAll(utf8.encode('================================'));
-    bytes.addAll([0x0A, 0x0A]);
+    // bytes.addAll([0x0A]);
+    // bytes.addAll(utf8.encode('================================'));
+    // bytes.addAll([0x0A, 0x0A]);
 
     // Left alignment for transaction details
     bytes.addAll([esc, 0x61, 0x00]); // Left alignment
 
     // Transaction info with proper encoding
-    bytes.addAll(
-      utf8.encode(
-        'No. Transaksi: ${transaction.id.substring(0, 8).toUpperCase()}',
-      ),
-    );
+    // bytes.addAll(
+    //   utf8.encode(
+    //     'No. Transaksi: ${transaction.id.substring(0, 8).toUpperCase()}',
+    //   ),
+    // );
     bytes.addAll([0x0A]);
 
     final dateFormat =
@@ -689,7 +688,11 @@ class BluetoothPrinterService {
     bytes.addAll(utf8.encode('Tanggal: $dateFormat'));
     bytes.addAll([0x0A]);
 
-    bytes.addAll(utf8.encode('Kasir: $cashierName'));
+    bytes.addAll(
+      utf8.encode(
+        'Kasir: $cashierName TRX: ${transaction.id.substring(0, 8).toUpperCase()}',
+      ),
+    );
     bytes.addAll([0x0A]);
 
     if (transaction.customer != null) {
@@ -697,33 +700,61 @@ class BluetoothPrinterService {
       bytes.addAll([0x0A]);
     }
 
-    bytes.addAll(
-      utf8.encode(
-        'Metode Bayar: ${_getPaymentMethodText(transaction.paymentMethod)}',
-      ),
-    );
+    // bytes.addAll(
+    //   utf8.encode(
+    //     'Metode Bayar: ${_getPaymentMethodText(transaction.paymentMethod)}',
+    //   ),
+    // );
     // bytes.addAll([0x0A, 0x0A]);
 
     // Items header
-    bytes.addAll(utf8.encode('DETAIL PEMBELIAN'));
-    bytes.addAll([0x0A]);
     bytes.addAll(utf8.encode('--------------------------------'));
+    bytes.addAll([0x0A]);
+    bytes.addAll(utf8.encode('DETAIL PEMBELIAN'));
     bytes.addAll([0x0A]);
 
     // Items with proper encoding
+    // for (final item in transaction.items) {
+    //   // Product name with proper encoding
+    //   bytes.addAll(utf8.encode(item.product.name));
+    //   bytes.addAll([0x0A]);
+
+    //   final itemLine = '${item.quantity} x ${_formatCurrency(item.unitPrice)}';
+    //   final totalLine = _formatCurrency(item.totalPrice);
+    //   final spaces = 32 - itemLine.length - totalLine.length;
+
+    //   bytes.addAll(utf8.encode(itemLine));
+    //   bytes.addAll(List.filled(spaces > 0 ? spaces : 1, 0x20)); // Spaces
+    //   bytes.addAll(utf8.encode(totalLine));
+    //   bytes.addAll([0x0A]);
+    // }
+
+    // Tentukan lebar karakter sesuai printer
+    const int lineChars = 32; // 58mm = 32 chars, 80mm = 48 chars
+
     for (final item in transaction.items) {
-      // Product name with proper encoding
-      bytes.addAll(utf8.encode(item.product.name));
-      // bytes.addAll([0x0A]);
+      const int nameWidth = 15;
+      const int qtyPriceWidth = 10;
+      const int totalWidth = 7;
 
-      final itemLine = '${item.quantity} x ${_formatCurrency(item.unitPrice)}';
-      final totalLine = _formatCurrency(item.totalPrice);
-      final spaces = 32 - itemLine.length - totalLine.length;
+      // Nama produk (potong jika lebih panjang)
+      String name = item.product.name;
+      if (name.length > nameWidth) {
+        name = name.substring(0, nameWidth - 1) + '…';
+      }
+      name = name.padRight(nameWidth);
 
-      bytes.addAll(utf8.encode(itemLine));
-      bytes.addAll(List.filled(spaces > 0 ? spaces : 1, 0x20)); // Spaces
-      bytes.addAll(utf8.encode(totalLine));
-      bytes.addAll([0x0A]);
+      // Qty × harga
+      final qtyPrice = '${item.quantity}x${_formatCurrency(item.unitPrice)}'
+          .padRight(qtyPriceWidth);
+
+      // Total (selalu rata kanan 7 digit)
+      final total = _formatCurrency(item.totalPrice).padLeft(totalWidth);
+
+      // Gabungkan jadi satu baris
+      final line = '$name$qtyPrice$total';
+
+      bytes.addAll(utf8.encode(line));
     }
 
     // Separator
@@ -751,7 +782,7 @@ class BluetoothPrinterService {
     // Total line
     bytes.addAll(utf8.encode('================================'));
     bytes.addAll([0x0A]);
-    bytes.addAll([esc, 0x21, 0x20]); // Double height
+    bytes.addAll([esc, 0x11, 0x10]); // Double height
     _addSummaryLine(bytes, 'TOTAL', transaction.total);
     bytes.addAll([esc, 0x21, 0x00]); // Normal size
 
@@ -759,17 +790,16 @@ class BluetoothPrinterService {
     _addSummaryLine(bytes, 'Kembalian', transaction.change);
 
     // Footer with proper encoding
-    bytes.addAll([0x0A, 0x0A]);
     bytes.addAll([esc, 0x61, 0x01]); // Center alignment
     bytes.addAll([esc, 0x21, 0x10]); // Bold
     bytes.addAll(utf8.encode(settings.receiptFooter));
     bytes.addAll([esc, 0x21, 0x00]); // Normal
     bytes.addAll([0x0A]);
 
-    bytes.addAll(utf8.encode('Barang yang sudah dibeli'));
-    bytes.addAll([0x0A]);
-    bytes.addAll(utf8.encode('tidak dapat dikembalikan'));
-    bytes.addAll([0x0A, 0x0A]);
+    // bytes.addAll(utf8.encode('Barang yang sudah dibeli'));
+    // bytes.addAll([0x0A]);
+    // bytes.addAll(utf8.encode('tidak dapat dikembalikan'));
+    // bytes.addAll([0x0A, 0x0A]);
 
     // Notes with proper encoding
     if (transaction.notes != null && transaction.notes!.isNotEmpty) {
@@ -778,9 +808,9 @@ class BluetoothPrinterService {
     }
 
     // Enhanced paper cutting sequence
-    bytes.addAll([0x0A, 0x0A]); // Extra line feeds before cut
-    bytes.addAll([gs, 0x56, 0x42, 0x00]); // Partial cut (more reliable)
-    bytes.addAll([0x0A]); // Final line feed
+    // bytes.addAll([0x0A, 0x0A]); // Extra line feeds before cut
+    // bytes.addAll([gs, 0x56, 0x42, 0x00]); // Partial cut (more reliable)
+    // bytes.addAll([0x0A]); // Final line feed
 
     return Uint8List.fromList(bytes);
   }
@@ -796,7 +826,7 @@ class BluetoothPrinterService {
   }
 
   String _formatCurrency(double amount) {
-    return 'Rp ${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}';
+    return '${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}';
   }
 
   String _getPaymentMethodText(model.PaymentMethod method) {

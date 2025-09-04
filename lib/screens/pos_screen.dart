@@ -579,7 +579,8 @@ class _POSScreenState extends State<POSScreen> {
         await transactionProvider.updateTransaction(transaction);
         if (mounted) {
           _showSuccessSnackBar(context, 'Transaksi berhasil diupdate');
-          Navigator.of(context).pop(); // Go back to reports screen
+          // Show receipt dialog after successful update
+          _showReceiptDialog(transaction);
         }
       } else {
         await transactionProvider.addTransaction(transaction);

@@ -18,6 +18,7 @@ class TransactionProvider with ChangeNotifier {
   Future<void> loadTransactions({
     DateTime? startDate,
     DateTime? endDate,
+    String? cashierId, // tambahin parameter opsional
   }) async {
     _isLoading = true;
     _startDate = startDate;
@@ -28,6 +29,7 @@ class TransactionProvider with ChangeNotifier {
       _transactions = await _databaseService.getTransactions(
         startDate: startDate,
         endDate: endDate,
+        cashierId: cashierId, // oper ke service
       );
     } catch (e) {
       debugPrint('Error loading transactions: $e');

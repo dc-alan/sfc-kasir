@@ -661,9 +661,13 @@ class ReportsService {
     bytes.addAll([0x0A]);
 
     bytes.addAll([esc, 0x21, 0x00]); // Normal size
-    final periodText =
-        'Periode: ${DateFormat('dd/MM/yyyy').format(startDate)} - ${DateFormat('dd/MM/yyyy').format(endDate)}';
-    bytes.addAll(periodText.codeUnits);
+    final periodMulaiText =
+        'Mulai: ${DateFormat('dd/MM/yyyy HH:mm').format(startDate)}';
+    bytes.addAll(periodMulaiText.codeUnits);
+    bytes.addAll([0x0A]);
+    final periodSampaiText =
+        'Sampai: ${DateFormat('dd/MM/yyyy HH:mm').format(endDate)}';
+    bytes.addAll(periodSampaiText.codeUnits);
     bytes.addAll([0x0A]);
 
     final printTime =
@@ -688,14 +692,6 @@ class ReportsService {
       'Total Pendapatan: ${_formatCurrency(totalRevenue)}'.codeUnits,
     );
     bytes.addAll([0x0A]);
-    if (totalTransactions > 0) {
-      bytes.addAll(
-        'Rata-rata: ${_formatCurrency(totalRevenue / totalTransactions)}'
-            .codeUnits,
-      );
-      bytes.addAll([0x0A]);
-    }
-    bytes.addAll([0x0A]);
 
     // Transactions list
     bytes.addAll('DETAIL TRANSAKSI'.codeUnits);
@@ -705,11 +701,9 @@ class ReportsService {
 
     for (var transaction in transactions) {
       bytes.addAll(
-        'ID: ${transaction.id.substring(0, 8).toUpperCase()}'.codeUnits,
-      );
-      bytes.addAll([0x0A]);
-      bytes.addAll(
-        DateFormat('dd/MM/yyyy HH:mm').format(transaction.createdAt).codeUnits,
+        'ID: ${transaction.id.substring(0, 8).toUpperCase()}  '
+                '${DateFormat('dd/MM/yyyy HH:mm').format(transaction.createdAt)}'
+            .codeUnits,
       );
       bytes.addAll([0x0A]);
       bytes.addAll('Kasir: ${transaction.cashierId}'.codeUnits);
@@ -719,10 +713,6 @@ class ReportsService {
       bytes.addAll('--------------------------------'.codeUnits);
       bytes.addAll([0x0A]);
     }
-
-    // Footer
-    // bytes.addAll([0x0A, 0x0A]);
-    bytes.addAll([gs, 0x56, 0x42, 0x00]); // Partial cut
 
     return Uint8List.fromList(bytes);
   }
@@ -738,9 +728,8 @@ class ReportsService {
     const esc = 0x1B;
     const gs = 0x1D;
 
-    // Calculate product sales
+    // Hitung penjualan produk
     final Map<String, Map<String, dynamic>> productSales = {};
-
     for (var transaction in transactions) {
       for (var item in transaction.items) {
         final productName = item.product.name;
@@ -760,23 +749,25 @@ class ReportsService {
     final sortedProducts = productSales.entries.toList()
       ..sort((a, b) => b.value['quantity'].compareTo(a.value['quantity']));
 
-    // Initialize printer
+    // Init printer
     bytes.addAll([esc, 0x40]); // Initialize
-    bytes.addAll([esc, 0x61, 0x01]); // Center alignment
+    bytes.addAll([esc, 0x61, 0x01]); // Center
 
     // Header
-    bytes.addAll([esc, 0x21, 0x30]); // Double height and width
-    bytes.addAll('LAPORAN PRODUK'.codeUnits);
-    bytes.addAll([0x0A, 0x0A]);
-
     bytes.addAll([esc, 0x21, 0x20]); // Double height
+    bytes.addAll('LAPORAN PRODUK'.codeUnits);
+    bytes.addAll([0x0A]);
     bytes.addAll(settings.businessName.toUpperCase().codeUnits);
     bytes.addAll([0x0A]);
 
-    bytes.addAll([esc, 0x21, 0x00]); // Normal size
-    final periodText =
-        'Periode: ${DateFormat('dd/MM/yyyy').format(startDate)} - ${DateFormat('dd/MM/yyyy').format(endDate)}';
-    bytes.addAll(periodText.codeUnits);
+    bytes.addAll([esc, 0x21, 0x00]); // Normal
+    final periodMulaiText =
+        'Mulai: ${DateFormat('dd/MM/yyyy HH:mm').format(startDate)}';
+    bytes.addAll(periodMulaiText.codeUnits);
+    bytes.addAll([0x0A]);
+    final periodSampaiText =
+        'Sampai: ${DateFormat('dd/MM/yyyy HH:mm').format(endDate)}';
+    bytes.addAll(periodSampaiText.codeUnits);
     bytes.addAll([0x0A]);
 
     final printTime =
@@ -784,19 +775,12 @@ class ReportsService {
     bytes.addAll(printTime.codeUnits);
     bytes.addAll([0x0A, 0x0A]);
 
-    // Summary
-    bytes.addAll('================================'.codeUnits);
-    bytes.addAll([0x0A]);
-    bytes.addAll('RINGKASAN'.codeUnits);
-    bytes.addAll([0x0A]);
-    bytes.addAll('================================'.codeUnits);
-    bytes.addAll([0x0A]);
-
-    final totalQuantity = productSales.values.fold(
+    // Ringkasan
+    final totalQuantity = productSales.values.fold<int>(
       0,
       (sum, p) => sum + (p['quantity'] as int),
     );
-    final totalRevenue = productSales.values.fold(
+    final totalRevenue = productSales.values.fold<double>(
       0.0,
       (sum, p) => sum + (p['total'] as double),
     );
@@ -805,33 +789,44 @@ class ReportsService {
     bytes.addAll([0x0A]);
     bytes.addAll('Total Qty: $totalQuantity'.codeUnits);
     bytes.addAll([0x0A]);
-    bytes.addAll(
-      'Total Pendapatan: ${_formatCurrency(totalRevenue)}'.codeUnits,
-    );
+    bytes.addAll('Pendapatan: ${_formatCurrency(totalRevenue)}'.codeUnits);
     bytes.addAll([0x0A, 0x0A]);
 
-    // Products list
+    // Header detail
     bytes.addAll('DETAIL PRODUK'.codeUnits);
     bytes.addAll([0x0A]);
     bytes.addAll('--------------------------------'.codeUnits);
     bytes.addAll([0x0A]);
 
+    // Lebar kertas thermal (misal 32 karakter)
+    const lineChars = 32;
+
     for (var entry in sortedProducts) {
-      bytes.addAll(entry.key.codeUnits);
-      bytes.addAll([0x0A]);
-      bytes.addAll('Qty: ${entry.value['quantity']}'.codeUnits);
-      bytes.addAll([0x0A]);
-      bytes.addAll('Harga: ${_formatCurrency(entry.value['price'])}'.codeUnits);
-      bytes.addAll([0x0A]);
-      bytes.addAll('Total: ${_formatCurrency(entry.value['total'])}'.codeUnits);
-      bytes.addAll([0x0A]);
-      bytes.addAll('--------------------------------'.codeUnits);
+      const int nameWidth = 15;
+      const int qtyPriceWidth = 10;
+      const int totalWidth = 7;
+
+      // Nama produk (potong jika terlalu panjang + isi spasi kanan)
+      var name = entry.key.length > nameWidth
+          ? entry.key.substring(0, nameWidth - 1) + '…'
+          : entry.key;
+      name = name.padRight(nameWidth);
+
+      // Qty x harga (kanan diisi spasi biar rata)
+      var qtyPrice =
+          '${entry.value['quantity']}x${_formatCurrency(entry.value['price'])}';
+      qtyPrice = qtyPrice.padRight(qtyPriceWidth);
+
+      // Total (digeser ke kanan, pakai padLeft)
+      var total = _formatCurrency(entry.value['total']).padLeft(totalWidth);
+
+      // Gabungkan jadi satu baris
+      final line = '$name$qtyPrice$total';
+
+      // Tambahkan ke bytes + baris baru
+      bytes.addAll(line.codeUnits);
       bytes.addAll([0x0A]);
     }
-
-    // Footer
-    bytes.addAll([0x0A, 0x0A]);
-    bytes.addAll([gs, 0x56, 0x42, 0x00]); // Partial cut
 
     return Uint8List.fromList(bytes);
   }
@@ -851,11 +846,7 @@ class ReportsService {
   }
 
   String _formatCurrency(double amount) {
-    return NumberFormat.currency(
-      locale: 'id_ID',
-      symbol: 'Rp ',
-      decimalDigits: 0,
-    ).format(amount);
+    return '${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}';
   }
 
   String _getPaymentMethodText(model.PaymentMethod method) {

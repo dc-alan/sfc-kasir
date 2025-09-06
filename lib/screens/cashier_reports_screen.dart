@@ -1024,24 +1024,76 @@ class _CashierReportsScreenState extends State<CashierReportsScreen>
     );
 
     if (picked != null) {
-      setState(() {
-        _selectedPeriod = 'Custom';
-        _startDate = DateTime(
-          picked.start.year,
-          picked.start.month,
-          picked.start.day,
-          0,
-          0,
+      // Show time picker for start date
+      final TimeOfDay? startTime = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.now(),
+        builder: (context, child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: Theme.of(context).colorScheme.copyWith(
+                primary: Color(
+                  int.parse(
+                    context
+                        .read<SettingsProvider>()
+                        .settings
+                        .primaryColor
+                        .replaceAll('#', '0xFF'),
+                  ),
+                ),
+              ),
+            ),
+            child: child!,
+          );
+        },
+      );
+
+      if (startTime != null) {
+        // Show time picker for end date
+        final TimeOfDay? endTime = await showTimePicker(
+          context: context,
+          initialTime: const TimeOfDay(hour: 23, minute: 59),
+          builder: (context, child) {
+            return Theme(
+              data: Theme.of(context).copyWith(
+                colorScheme: Theme.of(context).colorScheme.copyWith(
+                  primary: Color(
+                    int.parse(
+                      context
+                          .read<SettingsProvider>()
+                          .settings
+                          .primaryColor
+                          .replaceAll('#', '0xFF'),
+                    ),
+                  ),
+                ),
+              ),
+              child: child!,
+            );
+          },
         );
-        _endDate = DateTime(
-          picked.end.year,
-          picked.end.month,
-          picked.end.day,
-          23,
-          59,
-        );
-      });
-      _loadCashierData();
+
+        if (endTime != null) {
+          setState(() {
+            _selectedPeriod = 'Custom';
+            _startDate = DateTime(
+              picked.start.year,
+              picked.start.month,
+              picked.start.day,
+              startTime.hour,
+              startTime.minute,
+            );
+            _endDate = DateTime(
+              picked.end.year,
+              picked.end.month,
+              picked.end.day,
+              endTime.hour,
+              endTime.minute,
+            );
+          });
+          _loadCashierData();
+        }
+      }
     }
   }
 

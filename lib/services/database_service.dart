@@ -254,7 +254,7 @@ class DatabaseService {
         'id': 'prod-003',
         'name': 'Geprek 7K',
         'description': 'Geprek 7K',
-        'price': 70000.0,
+        'price': 7000.0,
         'stock': 50,
         'category': 'Makanan',
         'barcode': '1003',
